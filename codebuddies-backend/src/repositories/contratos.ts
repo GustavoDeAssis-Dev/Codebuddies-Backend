@@ -9,6 +9,7 @@ import type {
   StatusAluno,
   Tentativa,
   Turma,
+  Professor
 } from '../domain/entidades.js';
 
 /**
@@ -66,7 +67,14 @@ export interface RankingRepository {
   buscarPorSessao(sessaoId: number): Promise<RankingFinal | null>;
 }
 
+export interface ProfessorRepository {
+  buscarPorId(id: number): Promise<Professor | null>;
+  buscarPorEmail(email: string): Promise<Professor | null>;
+  criar(dados: Omit<Professor, 'id'>): Promise<Professor>;
+}
+
 export interface Repositorios {
+  professores: ProfessorRepository;
   turmas: TurmaRepository;
   sessoes: SessaoRepository;
   alunos: AlunoRepository;

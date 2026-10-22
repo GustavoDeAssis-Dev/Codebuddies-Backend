@@ -111,3 +111,13 @@ export interface RankingFinal {
   geradoEm: Date;
   itens: ItemRanking[];
 }
+
+/** Etapa 3 — Professor (perfil com acesso total: turmas, aulas, alunos, conteúdo). */
+export interface Professor {
+  id: number;
+  nome: string;
+  email: string;
+  senhaHash: string; // NUNCA a senha pura: guardamos só o hash gerado pelo bcrypt
+  ativo: boolean;
+  criadoEm: Date;
+}

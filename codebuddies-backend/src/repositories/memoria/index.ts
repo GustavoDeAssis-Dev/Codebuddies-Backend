@@ -8,6 +8,7 @@ import type {
   Sessao,
   Tentativa,
   Turma,
+  Professor,
 } from '../../domain/entidades.js';
 import type { Repositorios } from '../contratos.js';
 import { conteudoInicial } from './conteudo-inicial.js';
@@ -32,8 +33,24 @@ export function criarRepositoriosEmMemoria(
   const progressos = new Map<string, Progresso>();
   const rankings = new Map<number, RankingFinal>();
   const chaveProgresso = (alunoId: number, faseId: number) => `${alunoId}:${faseId}`;
+  const professores = new Map<number, Professor>();
 
   return {
+        professores: {
+      async buscarPorId(id) {
+        const p = professores.get(id);
+        return p ? copia(p) : null;
+      },
+      async buscarPorEmail(email) {
+        const p = [...professores.values()].find((x) => x.email === email);
+        return p ? copia(p) : null;
+      },
+      async criar(dados) {
+        const p = { id: novoId(), ...dados };
+        professores.set(p.id, p);
+        return copia(p);
+      },
+    },
     turmas: {
       async buscarPorId(id) {
         const t = turmas.get(id);

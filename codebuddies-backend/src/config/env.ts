@@ -11,6 +11,14 @@ const envSchema = z.object({
   // Origens permitidas para o front-end (Angular), separadas por vírgula.
   CORS_ORIGIN: z.string().default('http://localhost:4200'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+   // Autenticação (Etapa 3)
+  JWT_SECRET: z.string().min(32, 'JWT_SECRET precisa ter pelo menos 32 caracteres'),
+  JWT_EXPIRACAO_PROFESSOR: z.string().default('8h'),
+  JWT_EXPIRACAO_ALUNO: z.string().default('4h'),
+  // Professor criado automaticamente ao subir o servidor (enquanto não há banco)
+  PROFESSOR_INICIAL_NOME: z.string().optional(),
+  PROFESSOR_INICIAL_EMAIL: z.email().optional(),
+  PROFESSOR_INICIAL_SENHA: z.string().min(8).optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

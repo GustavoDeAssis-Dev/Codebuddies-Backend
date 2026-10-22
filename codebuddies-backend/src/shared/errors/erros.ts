@@ -5,6 +5,13 @@ import { AppError } from './app-error.js';
  * O `code` é o que o front-end usa para decidir a mensagem/tela; não mude códigos sem avisar o Dhérick.
  */
 export const Erros = {
+    // Autenticação / autorização (Etapa 3)
+  naoAutenticado: () => new AppError('Você precisa entrar primeiro.', 401, 'NAO_AUTENTICADO'),
+  tokenInvalido: () => new AppError('Sua entrada expirou. Entre novamente.', 401, 'TOKEN_INVALIDO'),
+  semPermissao: () => new AppError('Você não tem permissão para isso.', 403, 'SEM_PERMISSAO'),
+  credenciaisInvalidas: () => new AppError('E-mail ou senha incorretos.', 401, 'CREDENCIAIS_INVALIDAS'),
+  emailJaCadastrado: () =>
+    new AppError('Já existe um professor com este e-mail.', 409, 'EMAIL_JA_CADASTRADO'),
   // Sessão
   sessaoFechada: () => new AppError('Aguardando professor iniciar a aula.', 403, 'SESSAO_FECHADA'), // CA01 / RN02
   outraSessaoAberta: () =>
