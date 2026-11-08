@@ -1,4 +1,4 @@
-import type { RankingFinal, Sessao } from '../../domain/entidades.js';
+import type { RankingFinal, Sessao, StatusSessao } from '../../domain/entidades.js';
 import type { Contexto } from '../../shared/contexto.js';
 import { Erros } from '../../shared/errors/erros.js';
 import { RankingService } from '../ranking/ranking.service.js';
@@ -62,7 +62,29 @@ export class SessoesService {
     return sessao;
   }
 
-  private async buscar(id: number): Promise<Sessao> {
+    /** Etapa 4 — lista as aulas, da mais recente para a mais antiga (filtros opcionais). */
+  async listar(filtro: { turmaId?: number; status?: StatusSessao } = {}): Promise<Sessao[]> {
+    const sessoes = await this.ctx.repos.sessoes.listar(filtro);
+    return sessoes.sort((a, b) => b.criadaEm.getTime() - a.criadaEm.getTime() || b.id - a.id);
+  }
+
+  /** Etapa 4 — o que a tela do aluno precisa saber: tem aula aberta? de qual turma? (CA01) */
+  async resumoAberta() {
+    const sessao = await this.obterAberta();
+    if (!sessao) return { aberta: false as const };
+    const turma = await this.ctx.repos.turmas.buscarPorId(sessao.turmaId);
+    return {
+      aberta: true as const,
+      sessao: {
+        id: sessao.id,
+        turmaId: sessao.turmaId,
+        turmaNome: turma?.nome ?? '',
+        inicio: sessao.dataHoraInicio,
+      },
+    };
+  }
+
+  async buscar(id: number): Promise<Sessao> {
     const sessao = await this.ctx.repos.sessoes.buscarPorId(id);
     if (!sessao) throw Erros.sessaoNaoEncontrada();
     return sessao;

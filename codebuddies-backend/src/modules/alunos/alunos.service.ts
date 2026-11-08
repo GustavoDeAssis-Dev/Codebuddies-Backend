@@ -3,12 +3,22 @@ import { limparNome, normalizarNome } from '../../domain/regras/identificacao.js
 import type { Contexto } from '../../shared/contexto.js';
 import { Erros } from '../../shared/errors/erros.js';
 import { SessoesService } from '../sessoes/sessoes.service.js';
-import { entrarSchema, type EntrarInput } from './alunos.schemas.js';
+import {
+  atualizarAlunoSchema,
+  entrarSchema,
+  type AtualizarAlunoInput,
+  type EntrarInput,
+} from './alunos.schemas.js';
 
 export interface ResultadoEntrada {
   aluno: Aluno;
   sessao: Sessao;
   novo: boolean; // true = primeiro acesso (cadastro automático); false = perfil recuperado
+}
+
+/** Aluno na lista da aula: dados do aluno + quando entrou. */
+export interface AlunoNaSessao extends Aluno {
+  entradaEm: Date;
 }
 
 export class AlunosService {
@@ -70,5 +80,51 @@ export class AlunosService {
     const aluno = await this.ctx.repos.alunos.buscarPorId(alunoId);
     if (!aluno) throw Erros.alunoNaoEncontrado();
     return aluno;
+  }
+
+    /**
+   * Etapa 4 — corrige nome, idade ou personagem.
+   * Continua valendo a RN04: não pode ficar igual a outro aluno da mesma turma.
+   */
+  async atualizar(alunoId: number, input: AtualizarAlunoInput): Promise<Aluno> {
+    const dados = atualizarAlunoSchema.parse(input);
+    const aluno = await this.buscar(alunoId);
+
+    const nome = dados.nome !== undefined ? limparNome(dados.nome) : aluno.nome;
+    const nomeNormalizado = normalizarNome(nome);
+    const idade = dados.idade ?? aluno.idade;
+
+    const outro = await this.ctx.repos.alunos.buscarPorIdentificacao(aluno.turmaId, nomeNormalizado, idade);
+    if (outro && outro.id !== aluno.id) throw Erros.alunoJaExiste();
+
+    return this.ctx.repos.alunos.atualizar({
+      ...aluno,
+      nome,
+      nomeNormalizado,
+      idade,
+      personagem: dados.personagem ?? aluno.personagem,
+    });
+  }
+
+  /** Todos os alunos da turma, em ordem alfabética (ativos e desativados). */
+  async listarDaTurma(turmaId: number): Promise<Aluno[]> {
+    const turma = await this.ctx.repos.turmas.buscarPorId(turmaId);
+    if (!turma) throw Erros.turmaNaoEncontrada();
+    const alunos = await this.ctx.repos.alunos.listarPorTurma(turmaId);
+    return alunos.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  }
+
+  /** RF-D07 — alunos que entraram nesta aula, com o status de cada um. */
+  async listarDaSessao(sessaoId: number): Promise<AlunoNaSessao[]> {
+    const sessao = await this.ctx.repos.sessoes.buscarPorId(sessaoId);
+    if (!sessao) throw Erros.sessaoNaoEncontrada();
+
+    const participacoes = await this.ctx.repos.participacoes.listarPorSessao(sessaoId);
+    const lista: AlunoNaSessao[] = [];
+    for (const p of participacoes) {
+      const aluno = await this.ctx.repos.alunos.buscarPorId(p.alunoId);
+      if (aluno) lista.push({ ...aluno, entradaEm: p.entradaEm });
+    }
+    return lista.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   }
 }

@@ -17,3 +17,13 @@ export const entrarSchema = z.object({
 });
 
 export type EntrarInput = z.input<typeof entrarSchema>;
+/** Etapa 4 — professor corrige nome, idade ou personagem (ex.: a criança fez aniversário). */
+export const atualizarAlunoSchema = z
+  .object({
+    nome: entrarSchema.shape.nome.optional(),
+    idade: entrarSchema.shape.idade.optional(),
+    personagem: entrarSchema.shape.personagem,
+  })
+  .refine((d) => Object.values(d).some((v) => v !== undefined), { message: 'Nada para atualizar' });
+
+export type AtualizarAlunoInput = z.input<typeof atualizarAlunoSchema>;

@@ -3,13 +3,14 @@ import type {
   Fase,
   FaseComNivel,
   Participacao,
+  Professor,
   Progresso,
   RankingFinal,
   Sessao,
   StatusAluno,
+  StatusSessao,
   Tentativa,
   Turma,
-  Professor
 } from '../domain/entidades.js';
 
 /**
@@ -23,6 +24,8 @@ import type {
 export interface TurmaRepository {
   buscarPorId(id: number): Promise<Turma | null>;
   criar(dados: { nome: string; criadaEm: Date }): Promise<Turma>;
+  listar(): Promise<Turma[]>; // NOVO
+  atualizar(turma: Turma): Promise<Turma>; // NOVO
 }
 
 export interface SessaoRepository {
@@ -30,6 +33,7 @@ export interface SessaoRepository {
   buscarAberta(): Promise<Sessao | null>;
   criar(dados: { turmaId: number; criadaEm: Date }): Promise<Sessao>;
   atualizar(sessao: Sessao): Promise<Sessao>;
+  listar(filtro?: { turmaId?: number; status?: StatusSessao }): Promise<Sessao[]>; // NOVO
 }
 
 export interface AlunoRepository {
@@ -37,6 +41,8 @@ export interface AlunoRepository {
   buscarPorIdentificacao(turmaId: number, nomeNormalizado: string, idade: number): Promise<Aluno | null>;
   criar(dados: Omit<Aluno, 'id'>): Promise<Aluno>;
   atualizarStatus(id: number, status: StatusAluno): Promise<Aluno>;
+  atualizar(aluno: Aluno): Promise<Aluno>; // NOVO
+  listarPorTurma(turmaId: number): Promise<Aluno[]>; // NOVO
 }
 
 export interface ParticipacaoRepository {
@@ -71,6 +77,8 @@ export interface ProfessorRepository {
   buscarPorId(id: number): Promise<Professor | null>;
   buscarPorEmail(email: string): Promise<Professor | null>;
   criar(dados: Omit<Professor, 'id'>): Promise<Professor>;
+  listar(): Promise<Professor[]>; // NOVO
+  atualizar(professor: Professor): Promise<Professor>; // NOVO
 }
 
 export interface Repositorios {

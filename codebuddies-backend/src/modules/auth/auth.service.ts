@@ -16,7 +16,7 @@ import {
 export type ProfessorPublico = Omit<Professor, 'senhaHash'>;
 
 // Lista explícita do que pode sair: se um dia surgir um campo sensível novo, ele não vaza por acidente.
-function semSenha(p: Professor): ProfessorPublico {
+export function semSenha(p: Professor): ProfessorPublico {
   return { id: p.id, nome: p.nome, email: p.email, ativo: p.ativo, criadoEm: p.criadoEm };
 }
 

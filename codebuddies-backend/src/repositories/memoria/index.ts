@@ -50,6 +50,13 @@ export function criarRepositoriosEmMemoria(
         professores.set(p.id, p);
         return copia(p);
       },
+            async listar() {
+        return copia([...professores.values()]);
+      },
+      async atualizar(professor) {
+        professores.set(professor.id, copia(professor));
+        return copia(professor);
+      },
     },
     turmas: {
       async buscarPorId(id) {
@@ -60,6 +67,13 @@ export function criarRepositoriosEmMemoria(
         const t = { id: novoId(), nome: dados.nome, ativa: true, criadaEm: dados.criadaEm };
         turmas.set(t.id, t);
         return copia(t);
+      },
+            async listar() {
+        return copia([...turmas.values()]);
+      },
+      async atualizar(turma) {
+        turmas.set(turma.id, copia(turma));
+        return copia(turma);
       },
     },
 
@@ -88,6 +102,14 @@ export function criarRepositoriosEmMemoria(
         sessoes.set(sessao.id, copia(sessao));
         return copia(sessao);
       },
+            async listar(filtro = {}) {
+        const lista = [...sessoes.values()].filter(
+          (s) =>
+            (filtro.turmaId === undefined || s.turmaId === filtro.turmaId) &&
+            (filtro.status === undefined || s.status === filtro.status),
+        );
+        return copia(lista);
+      },
     },
 
     alunos: {
@@ -111,6 +133,13 @@ export function criarRepositoriosEmMemoria(
         if (!a) throw new Error(`Aluno ${id} não existe`);
         a.status = status;
         return copia(a);
+      },
+            async atualizar(aluno) {
+        alunos.set(aluno.id, copia(aluno));
+        return copia(aluno);
+      },
+      async listarPorTurma(turmaId) {
+        return copia([...alunos.values()].filter((a) => a.turmaId === turmaId));
       },
     },
 
