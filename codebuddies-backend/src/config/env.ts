@@ -19,6 +19,14 @@ const envSchema = z.object({
   PROFESSOR_INICIAL_NOME: z.string().optional(),
   PROFESSOR_INICIAL_EMAIL: z.email().optional(),
   PROFESSOR_INICIAL_SENHA: z.string().min(8).optional(),
+    // Banco de dados (Etapa 5)
+  // memoria = dados somem ao reiniciar (testes e desenvolvimento sem banco)
+  // oracle  = usa o banco Oracle configurado abaixo
+  BANCO: z.enum(['memoria', 'oracle']).default('memoria'),
+  DB_USER: z.string().optional(),
+  DB_PASSWORD: z.string().optional(),
+  DB_CONNECT_STRING: z.string().optional(), // ex.: servidor:1521/ORCL
+  DB_LOGGING: z.stringbool().default(false), // true = mostra no terminal cada SQL executado
 });
 
 const parsed = envSchema.safeParse(process.env);
