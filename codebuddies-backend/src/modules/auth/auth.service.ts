@@ -48,7 +48,7 @@ export class AuthService {
     return {
       token,
       novo,
-      aluno: { id: aluno.id, nome: aluno.nome, idade: aluno.idade, personagem: aluno.personagem },
+      aluno: { id: aluno.id, nome: aluno.nome, idade: aluno.idade},
       sessao: { id: sessao.id },
     };
   }

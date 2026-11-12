@@ -9,7 +9,8 @@
  */
 
 export const ESTRELAS_MINIMAS_APROVACAO = 3; // RN05
-
+/** Pontos por resposta certa (igual ao DEFAULT de DESAFIO.PONTOS no banco). */
+export const PONTOS_POR_ACERTO = 100;
 /** Faixas de porcentagem (mínimo inclusivo) → estrelas. Ordenadas da maior para a menor. */
 export const FAIXAS_ESTRELAS = [
   { minimo: 90, estrelas: 5 },
@@ -40,5 +41,5 @@ export function estaAprovado(estrelas: number): boolean {
 export function avaliarDesempenho(acertos: number, erros: number) {
   const percentual = calcularPercentual(acertos, erros);
   const estrelas = percentualParaEstrelas(percentual);
-  return { percentual, estrelas, aprovada: estaAprovado(estrelas) };
+  return { percentual, estrelas, aprovada: estaAprovado(estrelas), pontos: acertos * PONTOS_POR_ACERTO };
 }

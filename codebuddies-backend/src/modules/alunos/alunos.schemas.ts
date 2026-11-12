@@ -21,8 +21,7 @@ export type EntrarInput = z.input<typeof entrarSchema>;
 export const atualizarAlunoSchema = z
   .object({
     nome: entrarSchema.shape.nome.optional(),
-    idade: entrarSchema.shape.idade.optional(),
-    personagem: entrarSchema.shape.personagem,
+    idade: entrarSchema.shape.idade.optional()
   })
   .refine((d) => Object.values(d).some((v) => v !== undefined), { message: 'Nada para atualizar' });
 

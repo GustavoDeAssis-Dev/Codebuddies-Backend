@@ -1,4 +1,4 @@
-import type { FaseComNivel, Progresso } from '../entidades.js';
+import type { FaseComNivel, Progresso, Tentativa } from '../entidades.js';
 import { estaAprovado } from './estrelas.js';
 
 /**

@@ -1,15 +1,26 @@
 /**
  * Entidades do domínio CodeBuddies (modelo "Opção B": progresso guardado por TURMA).
  *
- * Turma 1──N Sessão (cada aula é uma sessão)
- * Turma 1──N Aluno  (o aluno pertence à turma e é reconhecido por nome + idade)
- * Sessão N──N Aluno (Participação: quem entrou em qual aula)
- * Nível 1──N Fase
- * Tentativa: cada vez que um aluno termina uma fase (ligada à sessão em que ocorreu)
- * Progresso: melhor resultado do aluno em cada fase (vale entre aulas)
+ * Turma 1──N Sessão (cada aula é uma sessão)       → tabelas TURMA, SESSAO_AULA
+ * Turma 1──N Aluno  (reconhecido por nome + idade) → tabela ALUNO
+ * Sessão N──N Aluno (quem entrou em qual aula)     → tabela PARTICIPACAO
+ * Nível 1──N Fase                                   → tabelas NIVEL, FASE
+ * Tentativa: cada vez que um aluno termina uma fase → tabela TENTATIVA_FASE
+ * Progresso: melhor resultado do aluno em cada fase → tabela PROGRESSO_FASE (mantida pela trigger)
+ * Ranking congelado de cada aula                   → tabela RANKING_SESSAO
  *
- * Estes tipos são o "contrato" com o banco: o Leonardo pode usar como referência para as tabelas.
+ * Estes tipos são o "modelo" das regras de negócio. As classes com anotações do TypeORM
+ * (src/database/entidades) fazem a ponte entre estes tipos e as tabelas do Oracle.
  */
+
+export interface Professor {
+  id: number;
+  nome: string;
+  email: string;
+  senhaHash: string; // NUNCA a senha pura: guardamos só o hash gerado pelo bcrypt
+  ativo: boolean;
+  criadoEm: Date;
+}
 
 export interface Turma {
   id: number;
@@ -18,12 +29,13 @@ export interface Turma {
   criadaEm: Date;
 }
 
-/** AGUARDANDO = criada mas ainda não aberta; ABERTA = alunos podem entrar; ENCERRADA = finalizada. */
-export type StatusSessao = 'AGUARDANDO' | 'ABERTA' | 'ENCERRADA';
+/** CRIADA = ainda não aberta; ABERTA = alunos podem entrar; ENCERRADA = finalizada. */
+export type StatusSessao = 'CRIADA' | 'ABERTA' | 'ENCERRADA';
 
 export interface Sessao {
   id: number;
   turmaId: number;
+  professorId: number; // quem criou a aula
   status: StatusSessao;
   criadaEm: Date;
   dataHoraInicio: Date | null;
@@ -38,7 +50,6 @@ export interface Aluno {
   nome: string; // como a criança digitou (limpo de espaços extras)
   nomeNormalizado: string; // usado para reconhecer o aluno: "João  " e "joao" viram "joao"
   idade: number;
-  personagem: string | null;
   status: StatusAluno;
   criadoEm: Date;
 }
@@ -51,8 +62,9 @@ export interface Participacao {
 
 export interface Nivel {
   id: number;
-  ordem: number; // 1, 2, 3...
+  ordem: number; // numero_nivel: 1, 2, 3...
   titulo: string;
+  descricao: string | null;
 }
 
 export type TipoFase = 'DIGITACAO' | 'LOGICA' | 'COMPUTACAO_BASICA';
@@ -63,8 +75,6 @@ export interface Fase {
   ordem: number; // posição da fase dentro do nível
   titulo: string;
   tipo: TipoFase;
-  dificuldade: number; // 1 a 5
-  ativa: boolean;
 }
 
 /** Fase já acompanhada do seu nível (facilita ordenar por nível → fase). */
@@ -77,23 +87,22 @@ export interface Tentativa {
   alunoId: number;
   faseId: number;
   sessaoId: number;
-  acertos: number;
-  erros: number;
   percentual: number; // 0 a 100 (inteiro)
   estrelas: number; // 0 a 5
+  pontos: number;
   aprovada: boolean; // estrelas >= 3
   tempoSegundos: number;
   dataHora: Date;
 }
 
+/** Melhor resultado do aluno numa fase. No Oracle, quem mantém é a trigger TRG_ATUALIZA_PROGRESSO_OFICIAL. */
 export interface Progresso {
   alunoId: number;
   faseId: number;
   melhorEstrelas: number;
-  tentativas: number;
-  melhorTempoSegundos: number | null; // tempo da tentativa com mais estrelas
+  pontuacaoMaxima: number;
   concluida: boolean;
-  ultimaTentativaEm: Date;
+  atualizadoEm: Date;
 }
 
 export interface ItemRanking {
@@ -110,14 +119,4 @@ export interface RankingFinal {
   sessaoId: number;
   geradoEm: Date;
   itens: ItemRanking[];
-}
-
-/** Etapa 3 — Professor (perfil com acesso total: turmas, aulas, alunos, conteúdo). */
-export interface Professor {
-  id: number;
-  nome: string;
-  email: string;
-  senhaHash: string; // NUNCA a senha pura: guardamos só o hash gerado pelo bcrypt
-  ativo: boolean;
-  criadoEm: Date;
 }

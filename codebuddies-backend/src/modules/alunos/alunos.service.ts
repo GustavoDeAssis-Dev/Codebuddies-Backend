@@ -53,7 +53,6 @@ export class AlunosService {
         nome: limparNome(dados.nome),
         nomeNormalizado,
         idade: dados.idade,
-        personagem: dados.personagem ?? null,
         status: 'ATIVO',
         criadoEm: agora(),
       });
@@ -102,7 +101,6 @@ export class AlunosService {
       nome,
       nomeNormalizado,
       idade,
-      personagem: dados.personagem ?? aluno.personagem,
     });
   }
 

@@ -6,8 +6,8 @@
  * (sem acentos, minúsculas, espaços únicos).
  */
 
-export const IDADE_MINIMA = 3;
-export const IDADE_MAXIMA = 14;
+export const IDADE_MINIMA = 4; 
+export const IDADE_MAXIMA = 15;
 export const NOME_TAMANHO_MAXIMO = 40;
 
 export function limparNome(nome: string): string {

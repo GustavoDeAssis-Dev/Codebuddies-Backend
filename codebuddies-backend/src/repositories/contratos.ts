@@ -31,9 +31,12 @@ export interface TurmaRepository {
 export interface SessaoRepository {
   buscarPorId(id: number): Promise<Sessao | null>;
   buscarAberta(): Promise<Sessao | null>;
-  criar(dados: { turmaId: number; criadaEm: Date }): Promise<Sessao>;
-  atualizar(sessao: Sessao): Promise<Sessao>;
-  listar(filtro?: { turmaId?: number; status?: StatusSessao }): Promise<Sessao[]>; // NOVO
+  criar(dados: { turmaId: number; professorId: number; criadaEm: Date }): Promise<Sessao>;
+  listar(filtro?: { turmaId?: number; status?: StatusSessao }): Promise<Sessao[]>;
+  /** CRIADA → ABERTA. No Oracle chama a procedure PRC_ABRIR_SESSAO. */
+  abrir(id: number, em: Date): Promise<Sessao>;
+  /** ABERTA → ENCERRADA. No Oracle chama a procedure PRC_ENCERRAR_SESSAO. */
+  encerrar(id: number, em: Date): Promise<Sessao>;
 }
 
 export interface AlunoRepository {
@@ -56,7 +59,10 @@ export interface ConteudoRepository {
   listarFases(): Promise<FaseComNivel[]>;
   buscarFase(id: number): Promise<Fase | null>;
 }
-
+  /**
+   * Grava a tentativa. O PROGRESSO é atualizado junto, automaticamente:
+   * no Oracle pela trigger TRG_ATUALIZA_PROGRESSO_OFICIAL; em memória por consolidarProgresso().
+   */
 export interface TentativaRepository {
   criar(dados: Omit<Tentativa, 'id'>): Promise<Tentativa>;
   listarPorSessao(sessaoId: number): Promise<Tentativa[]>;
@@ -82,6 +88,12 @@ export interface ProfessorRepository {
 }
 
 export interface Repositorios {
+
+  /**
+   * Executa várias operações numa TRANSAÇÃO: ou tudo é gravado, ou nada é.
+   * Ex.: encerrar a aula + salvar o ranking. Se o ranking falhar, a aula continua aberta.
+   */
+  transacao<T>(trabalho: (repos: Repositorios) => Promise<T>): Promise<T>;
   professores: ProfessorRepository;
   turmas: TurmaRepository;
   sessoes: SessaoRepository;
