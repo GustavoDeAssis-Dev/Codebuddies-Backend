@@ -34,9 +34,7 @@ export interface MapaDeFases {
 }
 
 export function ordenarFases<T extends FaseComNivel>(fases: T[]): T[] {
-  return fases
-    .filter((f) => f.ativa)
-    .sort((a, b) => a.nivel.ordem - b.nivel.ordem || a.ordem - b.ordem || a.id - b.id);
+  return [...fases].sort((a, b) => a.nivel.ordem - b.nivel.ordem || a.ordem - b.ordem || a.id - b.id);
 }
 
 export function montarMapaDeFases(fases: FaseComNivel[], progressos: Progresso[]): MapaDeFases {
@@ -47,7 +45,7 @@ export function montarMapaDeFases(fases: FaseComNivel[], progressos: Progresso[]
   const mapa: FaseNoMapa[] = ordenadas.map((fase) => {
     const progresso = porFase.get(fase.id);
     const melhorEstrelas = progresso?.melhorEstrelas ?? 0;
-    const concluida = progresso !== undefined && estaAprovado(melhorEstrelas);
+    const concluida = progresso?.concluida ?? false; // no Oracle, quem decide é a trigger
     const status: StatusFase = concluida ? 'CONCLUIDA' : anteriorConcluida ? 'LIBERADA' : 'BLOQUEADA';
     anteriorConcluida = concluida;
     return {
@@ -60,7 +58,6 @@ export function montarMapaDeFases(fases: FaseComNivel[], progressos: Progresso[]
       ordem: fase.ordem,
       status,
       melhorEstrelas,
-      tentativas: progresso?.tentativas ?? 0,
     };
   });
 
@@ -85,4 +82,38 @@ export function podeJogar(mapa: MapaDeFases, faseId: number): boolean {
 export function proximaFase(mapa: MapaDeFases, faseId: number): FaseNoMapa | null {
   const i = mapa.fases.findIndex((f) => f.faseId === faseId);
   return i >= 0 ? (mapa.fases[i + 1] ?? null) : null;
+}
+/**
+ * RN06 / RN15 — Consolida o melhor resultado do aluno na fase.
+ *
+ * ⚠️ No Oracle esta regra é feita pela trigger TRG_ATUALIZA_PROGRESSO_OFICIAL (do Leonardo).
+ * Esta função faz EXATAMENTE a mesma coisa para o banco em memória (testes), e serve de
+ * documentação da regra:
+ *   - primeira tentativa na fase → cria o progresso
+ *   - depois, só atualiza se tiver MAIS estrelas, ou as mesmas estrelas com MAIS pontos
+ *   - uma fase concluída nunca volta a ficar "não concluída"
+ */
+export function consolidarProgresso(anterior: Progresso | null, t: Tentativa): Progresso {
+  if (!anterior) {
+    return {
+      alunoId: t.alunoId,
+      faseId: t.faseId,
+      melhorEstrelas: t.estrelas,
+      pontuacaoMaxima: t.pontos,
+      concluida: estaAprovado(t.estrelas),
+      atualizadoEm: t.dataHora,
+    };
+  }
+  const melhorou =
+    t.estrelas > anterior.melhorEstrelas ||
+    (t.estrelas === anterior.melhorEstrelas && t.pontos > anterior.pontuacaoMaxima);
+  if (!melhorou) return anterior;
+
+  return {
+    ...anterior,
+    melhorEstrelas: t.estrelas,
+    pontuacaoMaxima: t.pontos,
+    concluida: anterior.concluida || t.aprovada,
+    atualizadoEm: t.dataHora,
+  };
 }

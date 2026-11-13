@@ -12,6 +12,7 @@ import type {
 } from '../../domain/entidades.js';
 import type { Repositorios } from '../contratos.js';
 import { conteudoInicial } from './conteudo-inicial.js';
+import { consolidarProgresso } from '../../domain/regras/progressao.js';
 
 /**
  * Implementação EM MEMÓRIA dos repositórios.
@@ -35,7 +36,7 @@ export function criarRepositoriosEmMemoria(
   const chaveProgresso = (alunoId: number, faseId: number) => `${alunoId}:${faseId}`;
   const professores = new Map<number, Professor>();
 
-  return {
+  const repos: Repositorios = {
         professores: {
       async buscarPorId(id) {
         const p = professores.get(id);
@@ -86,11 +87,12 @@ export function criarRepositoriosEmMemoria(
         const s = [...sessoes.values()].find((x) => x.status === 'ABERTA');
         return s ? copia(s) : null;
       },
-      async criar(dados) {
-        const s = {
+            async criar(dados) {
+        const s: Sessao = {
           id: novoId(),
           turmaId: dados.turmaId,
-          status: 'AGUARDANDO' as const,
+          professorId: dados.professorId,
+          status: 'CRIADA',
           criadaEm: dados.criadaEm,
           dataHoraInicio: null,
           dataHoraFim: null,
@@ -98,9 +100,17 @@ export function criarRepositoriosEmMemoria(
         sessoes.set(s.id, s);
         return copia(s);
       },
-      async atualizar(sessao) {
-        sessoes.set(sessao.id, copia(sessao));
-        return copia(sessao);
+      async abrir(id, em) {
+        const s = sessoes.get(id)!;
+        s.status = 'ABERTA';
+        s.dataHoraInicio = em;
+        return copia(s);
+      },
+      async encerrar(id, em) {
+        const s = sessoes.get(id)!;
+        s.status = 'ENCERRADA';
+        s.dataHoraFim = em;
+        return copia(s);
       },
             async listar(filtro = {}) {
         const lista = [...sessoes.values()].filter(
@@ -175,6 +185,9 @@ export function criarRepositoriosEmMemoria(
       async criar(dados) {
         const t = { id: novoId(), ...dados };
         tentativas.push(t);
+                // Faz o papel da trigger TRG_ATUALIZA_PROGRESSO_OFICIAL do Oracle
+        const chave = chaveProgresso(t.alunoId, t.faseId);
+        progressos.set(chave, consolidarProgresso(progressos.get(chave) ?? null, t));
         return copia(t);
       },
       async listarPorSessao(sessaoId) {
@@ -189,11 +202,7 @@ export function criarRepositoriosEmMemoria(
       async buscar(alunoId, faseId) {
         const p = progressos.get(chaveProgresso(alunoId, faseId));
         return p ? copia(p) : null;
-      },
-      async salvar(progresso) {
-        progressos.set(chaveProgresso(progresso.alunoId, progresso.faseId), copia(progresso));
-        return copia(progresso);
-      },
+      }
     },
 
     rankings: {
@@ -205,5 +214,12 @@ export function criarRepositoriosEmMemoria(
         return r ? copia(r) : null;
       },
     },
+     // Em memória não existe "desfazer": a transação só executa o trabalho.
+    // (No Oracle, um erro no meio desfaz tudo — ver repositories/oracle.)
+    async transacao(trabalho) {
+      return trabalho(repos);
+    },
   };
+
+  return repos;
 }
