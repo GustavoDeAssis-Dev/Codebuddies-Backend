@@ -22,7 +22,6 @@ export interface FaseNoMapa {
   ordem: number;
   status: StatusFase;
   melhorEstrelas: number;
-  tentativas: number;
 }
 
 export interface MapaDeFases {

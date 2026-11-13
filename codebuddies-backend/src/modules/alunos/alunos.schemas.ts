@@ -13,7 +13,6 @@ export const entrarSchema = z.object({
     .int('Digite sua idade')
     .min(IDADE_MINIMA, 'Idade inválida')
     .max(IDADE_MAXIMA, 'Idade inválida'),
-  personagem: z.string().trim().max(30).optional(),
 });
 
 export type EntrarInput = z.input<typeof entrarSchema>;

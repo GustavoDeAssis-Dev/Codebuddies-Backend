@@ -1,4 +1,4 @@
-import type { Progresso, Tentativa } from '../../domain/entidades.js';
+import type { Tentativa } from '../../domain/entidades.js';
 import { avaliarDesempenho } from '../../domain/regras/estrelas.js';
 import { montarMapaDeFases, podeJogar, proximaFase } from '../../domain/regras/progressao.js';
 import type { Contexto } from '../../shared/contexto.js';
@@ -10,6 +10,7 @@ export interface ResultadoTentativa {
   tentativa: Tentativa;
   estrelas: number; // RN09 / RN12 — mostrado imediatamente na tela de resultado
   percentual: number;
+  pontos: number;
   aprovada: boolean; // true → tela de sucesso (RF-P11); false → tela de derrota (RF-P12)
   melhorEstrelas: number; // melhor resultado da fase até agora (RN06)
   novoRecorde: boolean; // superou o melhor resultado anterior (CA07)
@@ -31,8 +32,9 @@ export class TentativasService {
    * Registra o fim de uma fase:
    *  - exige sessão aberta, aluno ativo e participante da sessão
    *  - exige que a fase esteja liberada para o aluno
-   *  - calcula estrelas pela porcentagem de acertos
-   *  - guarda a tentativa e atualiza o progresso mantendo a MELHOR pontuação
+   *  - calcula estrelas (pela % de acertos) e pontos (100 por acerto)
+   *  - grava a tentativa; o PROGRESSO (melhor resultado) é atualizado automaticamente
+   *    pela trigger do Oracle (ou pela versão em memória, nos testes)
    */
   async registrar(alunoId: number, input: RegistrarTentativaInput): Promise<ResultadoTentativa> {
     const sessao = await this.sessoes.exigirAberta();
@@ -45,50 +47,32 @@ export class TentativasService {
     if (!(await repos.participacoes.existe(sessao.id, alunoId))) throw Erros.alunoForaDaSessao();
 
     const fase = await repos.conteudo.buscarFase(dados.faseId);
-    if (!fase || !fase.ativa) throw Erros.faseNaoEncontrada();
+    if (!fase) throw Erros.faseNaoEncontrada();
 
     const fases = await repos.conteudo.listarFases();
     const mapaAntes = montarMapaDeFases(fases, await repos.progressos.listarPorAluno(alunoId));
     if (!podeJogar(mapaAntes, fase.id)) throw Erros.faseBloqueada();
 
-    // Cálculo da nota → estrelas
-    const { percentual, estrelas, aprovada } = avaliarDesempenho(dados.acertos, dados.erros);
-    const dataHora = agora();
+    const anterior = await repos.progressos.buscar(alunoId, fase.id);
+
+    // Cálculo da nota → estrelas e pontos
+    const { percentual, estrelas, aprovada, pontos } = avaliarDesempenho(dados.acertos, dados.erros);
 
     const tentativa = await repos.tentativas.criar({
       alunoId,
       faseId: fase.id,
       sessaoId: sessao.id,
-      acertos: dados.acertos,
-      erros: dados.erros,
       percentual,
       estrelas,
+      pontos,
       aprovada,
       tempoSegundos: dados.tempoSegundos,
-      dataHora,
+      dataHora: agora(),
     });
 
-    // RN06 / RN15 — o progresso guarda sempre a melhor tentativa
-    const anterior = await repos.progressos.buscar(alunoId, fase.id);
-    const novoRecorde = anterior === null || estrelas > anterior.melhorEstrelas;
-    const empateMaisRapido =
-      anterior !== null &&
-      estrelas === anterior.melhorEstrelas &&
-      (anterior.melhorTempoSegundos === null || dados.tempoSegundos < anterior.melhorTempoSegundos);
-
-    const progresso: Progresso = {
-      alunoId,
-      faseId: fase.id,
-      melhorEstrelas: Math.max(estrelas, anterior?.melhorEstrelas ?? 0),
-      tentativas: (anterior?.tentativas ?? 0) + 1,
-      melhorTempoSegundos:
-        novoRecorde || empateMaisRapido ? dados.tempoSegundos : (anterior?.melhorTempoSegundos ?? null),
-      concluida: (anterior?.concluida ?? false) || aprovada,
-      ultimaTentativaEm: dataHora,
-    };
-    await repos.progressos.salvar(progresso);
-
+    // Lê o progresso já consolidado (RN06 / RN15)
     const progressos = await repos.progressos.listarPorAluno(alunoId);
+    const atual = progressos.find((p) => p.faseId === fase.id);
     const mapaDepois = montarMapaDeFases(fases, progressos);
     const proxima = aprovada ? proximaFase(mapaDepois, fase.id) : null; // RN13 / RN14
 
@@ -96,9 +80,10 @@ export class TentativasService {
       tentativa,
       estrelas,
       percentual,
+      pontos,
       aprovada,
-      melhorEstrelas: progresso.melhorEstrelas,
-      novoRecorde,
+      melhorEstrelas: atual?.melhorEstrelas ?? estrelas,
+      novoRecorde: anterior === null || estrelas > anterior.melhorEstrelas,
       proximaFaseId: proxima?.faseId ?? null,
       nivelAtual: mapaDepois.nivelAtual,
       estrelasTotais: mapaDepois.estrelasTotais,

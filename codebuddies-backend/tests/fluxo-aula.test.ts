@@ -27,7 +27,7 @@ type Sistema = ReturnType<typeof montar>;
 
 async function abrirAula(s: Sistema, turmaId?: number) {
   const id = turmaId ?? (await s.ctx.repos.turmas.criar({ nome: '2º ano B', criadaEm: new Date() })).id;
-  const sessao = await s.sessoes.criar(id);
+  const sessao = await s.sessoes.criar(id, 1);
   await s.sessoes.abrir(sessao.id);
   return { turmaId: id, sessaoId: sessao.id };
 }
@@ -70,7 +70,7 @@ describe('Fluxo da aula — critérios de aceitação', () => {
 
   it('RN01 — só uma sessão aberta por vez', async () => {
     const { turmaId } = await abrirAula(s);
-    const outra = await s.sessoes.criar(turmaId);
+    const outra = await s.sessoes.criar(turmaId, 1);
     await expect(s.sessoes.abrir(outra.id)).rejects.toMatchObject({ code: 'OUTRA_SESSAO_ABERTA' });
   });
 
@@ -119,7 +119,7 @@ describe('Fluxo da aula — critérios de aceitação', () => {
     expect(pior.melhorEstrelas).toBe(5);
 
     const mapa = await s.progresso.mapaDoAluno(aluno.id);
-    expect(mapa.fases[0]).toMatchObject({ status: 'CONCLUIDA', melhorEstrelas: 5, tentativas: 3 });
+    expect(mapa.fases[0]).toMatchObject({ status: 'CONCLUIDA', melhorEstrelas: 5});
     expect(mapa.estrelasTotais).toBe(5);
   });
 

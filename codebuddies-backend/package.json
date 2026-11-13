@@ -18,7 +18,8 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "db:testar": "tsx --env-file-if-exists=.env scripts/testar-conexao.ts"
+    "db:testar": "tsx --env-file-if-exists=.env scripts/testar-conexao.ts",
+    "db:verificar": "tsx --env-file-if-exists=.env scripts/verificar-oracle.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

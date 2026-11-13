@@ -5,19 +5,19 @@ import { RankingService } from '../ranking/ranking.service.js';
 
 /**
  * RF-D02 a RF-D06 / RN01 / RN02 — Ciclo de vida da aula (sessão):
- *   criar (AGUARDANDO) → abrir (ABERTA) → encerrar (ENCERRADA, gera ranking congelado)
+ *   criar (CRIADA) → abrir (ABERTA) → encerrar (ENCERRADA, gera ranking congelado)
+ *
+ * As checagens abaixo dão mensagens claras ao front. No Oracle, as procedures
+ * PRC_ABRIR_SESSAO / PRC_ENCERRAR_SESSAO e o índice UX_SESSAO_ABERTA garantem as
+ * mesmas regras mesmo com dois cliques ao mesmo tempo.
  */
 export class SessoesService {
-  private readonly ranking: RankingService;
+  constructor(private readonly ctx: Contexto) {}
 
-  constructor(private readonly ctx: Contexto) {
-    this.ranking = new RankingService(ctx);
-  }
-
-  async criar(turmaId: number): Promise<Sessao> {
+  async criar(turmaId: number, professorId: number): Promise<Sessao> {
     const turma = await this.ctx.repos.turmas.buscarPorId(turmaId);
     if (!turma || !turma.ativa) throw Erros.turmaNaoEncontrada();
-    return this.ctx.repos.sessoes.criar({ turmaId, criadaEm: this.ctx.agora() });
+    return this.ctx.repos.sessoes.criar({ turmaId, professorId, criadaEm: this.ctx.agora() });
   }
 
   async abrir(sessaoId: number): Promise<Sessao> {
@@ -28,11 +28,7 @@ export class SessoesService {
     // RN01 — apenas uma sessão aberta por vez
     if (await this.ctx.repos.sessoes.buscarAberta()) throw Erros.outraSessaoAberta();
 
-    return this.ctx.repos.sessoes.atualizar({
-      ...sessao,
-      status: 'ABERTA',
-      dataHoraInicio: this.ctx.agora(),
-    });
+    return this.ctx.repos.sessoes.abrir(sessaoId, this.ctx.agora());
   }
 
   /** RF-D04 / RF-D05 / CA09 — encerra, bloqueia novas entradas e congela o ranking. */
@@ -41,13 +37,12 @@ export class SessoesService {
     if (sessao.status === 'ENCERRADA') throw Erros.sessaoJaEncerrada();
     if (sessao.status !== 'ABERTA') throw Erros.sessaoNaoEstaAberta();
 
-    const encerrada = await this.ctx.repos.sessoes.atualizar({
-      ...sessao,
-      status: 'ENCERRADA',
-      dataHoraFim: this.ctx.agora(),
+    // Encerrar + salvar o ranking numa TRANSAÇÃO: se o ranking falhar, a aula continua aberta
+    return this.ctx.repos.transacao(async (repos) => {
+      const encerrada = await repos.sessoes.encerrar(sessaoId, this.ctx.agora());
+      const ranking = await new RankingService({ ...this.ctx, repos }).gerar(sessaoId);
+      return { sessao: encerrada, ranking };
     });
-    const ranking = await this.ranking.gerar(sessaoId);
-    return { sessao: encerrada, ranking };
   }
 
   /** Sessão aberta no momento (ou null → front mostra "Aguardando professor iniciar a aula"). */
@@ -62,7 +57,7 @@ export class SessoesService {
     return sessao;
   }
 
-    /** Etapa 4 — lista as aulas, da mais recente para a mais antiga (filtros opcionais). */
+  /** Etapa 4 — lista as aulas, da mais recente para a mais antiga (filtros opcionais). */
   async listar(filtro: { turmaId?: number; status?: StatusSessao } = {}): Promise<Sessao[]> {
     const sessoes = await this.ctx.repos.sessoes.listar(filtro);
     return sessoes.sort((a, b) => b.criadaEm.getTime() - a.criadaEm.getTime() || b.id - a.id);

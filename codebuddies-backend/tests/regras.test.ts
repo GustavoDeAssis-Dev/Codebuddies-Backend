@@ -6,7 +6,7 @@ import {
   percentualParaEstrelas,
 } from '../src/domain/regras/estrelas.js';
 import { limparNome, normalizarNome } from '../src/domain/regras/identificacao.js';
-import { montarMapaDeFases } from '../src/domain/regras/progressao.js';
+import { montarMapaDeFases, consolidarProgresso } from '../src/domain/regras/progressao.js';
 import { montarRanking } from '../src/domain/regras/ranking.js';
 import { conteudoInicial } from '../src/repositories/memoria/conteudo-inicial.js';
 
@@ -24,12 +24,12 @@ describe('Estrelas por porcentagem de acertos (RF-P10 / RN05)', () => {
     [20, 1],
     [19, 0],
     [0, 0],
-  ])('%i%% → %i estrelas', (pct, estrelas) => {
+    ])('%i por cento → %i estrelas', (pct, estrelas) => {
     expect(percentualParaEstrelas(pct)).toBe(estrelas);
   });
 
   it('conta todas as respostas: 10 acertos e 3 erros = 76% = 4 estrelas', () => {
-    expect(avaliarDesempenho(10, 3)).toEqual({ percentual: 76, estrelas: 4, aprovada: true });
+        expect(avaliarDesempenho(10, 3)).toEqual({ percentual: 76, estrelas: 4, aprovada: true, pontos: 1000 });
   });
 
   it('arredonda para baixo: 2 de 3 = 66%', () => {
@@ -61,10 +61,9 @@ describe('Mapa de fases e desbloqueio (RN07 / RN13)', () => {
     alunoId: 1,
     faseId,
     melhorEstrelas,
-    tentativas: 1,
-    melhorTempoSegundos: 10,
+    pontuacaoMaxima: melhorEstrelas * 200,
     concluida: melhorEstrelas >= 3,
-    ultimaTentativaEm: new Date(),
+    atualizadoEm: new Date(),
   });
 
   it('aluno novo: só a primeira fase liberada, nível 1', () => {
@@ -136,5 +135,35 @@ describe('Ranking (RF-P13)', () => {
   it('empate total divide a posição (1º, 2º, 2º, 4º)', () => {
     const r = montarRanking([p('A', 3, 9, 100), p('B', 2, 5, 100), p('C', 2, 5, 100), p('D', 1, 1, 1)]);
     expect(r.map((i) => i.posicao)).toEqual([1, 2, 2, 4]);
+  });
+});
+describe('Consolidação do progresso (igual à trigger TRG_ATUALIZA_PROGRESSO_OFICIAL)', () => {
+  const t = (estrelas: number, pontos: number) => ({
+    id: 1,
+    alunoId: 1,
+    faseId: 1,
+    sessaoId: 1,
+    percentual: 0,
+    estrelas,
+    pontos,
+    aprovada: estrelas >= 3,
+    tempoSegundos: 10,
+    dataHora: new Date(),
+  });
+
+  it('primeira tentativa cria o progresso', () => {
+    expect(consolidarProgresso(null, t(2, 200))).toMatchObject({ melhorEstrelas: 2, concluida: false });
+  });
+
+  it('só melhora com mais estrelas, ou mesmas estrelas e mais pontos', () => {
+    const p1 = consolidarProgresso(null, t(3, 300));
+    expect(consolidarProgresso(p1, t(2, 900))).toBe(p1); // pior: não muda
+    expect(consolidarProgresso(p1, t(3, 400)).pontuacaoMaxima).toBe(400); // empate, mais pontos
+    expect(consolidarProgresso(p1, t(5, 100)).melhorEstrelas).toBe(5);
+  });
+
+  it('fase concluída não volta a ficar não concluída', () => {
+    const p1 = consolidarProgresso(null, t(4, 400));
+    expect(consolidarProgresso(p1, t(1, 100)).concluida).toBe(true);
   });
 });

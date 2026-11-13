@@ -71,7 +71,6 @@ export interface TentativaRepository {
 export interface ProgressoRepository {
   listarPorAluno(alunoId: number): Promise<Progresso[]>;
   buscar(alunoId: number, faseId: number): Promise<Progresso | null>;
-  salvar(progresso: Progresso): Promise<Progresso>;
 }
 
 export interface RankingRepository {
@@ -88,12 +87,6 @@ export interface ProfessorRepository {
 }
 
 export interface Repositorios {
-
-  /**
-   * Executa várias operações numa TRANSAÇÃO: ou tudo é gravado, ou nada é.
-   * Ex.: encerrar a aula + salvar o ranking. Se o ranking falhar, a aula continua aberta.
-   */
-  transacao<T>(trabalho: (repos: Repositorios) => Promise<T>): Promise<T>;
   professores: ProfessorRepository;
   turmas: TurmaRepository;
   sessoes: SessaoRepository;
@@ -103,4 +96,9 @@ export interface Repositorios {
   tentativas: TentativaRepository;
   progressos: ProgressoRepository;
   rankings: RankingRepository;
+    /**
+   * Executa várias operações numa TRANSAÇÃO: ou tudo é gravado, ou nada é.
+   * Ex.: encerrar a aula + salvar o ranking. Se o ranking falhar, a aula continua aberta.
+   */
+  transacao<T>(trabalho: (repos: Repositorios) => Promise<T>): Promise<T>;
 }

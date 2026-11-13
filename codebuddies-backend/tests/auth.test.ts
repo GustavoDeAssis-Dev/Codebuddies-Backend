@@ -27,7 +27,7 @@ beforeEach(async () => {
 async function abrirAula() {
   const turma = await ctx.repos.turmas.criar({ nome: '2º ano B', criadaEm: new Date() });
   const sessoes = new SessoesService(ctx);
-  const sessao = await sessoes.criar(turma.id);
+  const sessao = await sessoes.criar(turma.id, 1);
   await sessoes.abrir(sessao.id);
   return sessao;
 }

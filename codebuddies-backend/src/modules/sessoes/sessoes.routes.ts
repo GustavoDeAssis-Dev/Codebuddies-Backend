@@ -25,7 +25,7 @@ export function sessoesRoutes(ctx: Contexto) {
 
   router.post('/', ...soProfessor, async (req, res) => {
     const { turmaId } = criarSessaoSchema.parse(req.body);
-    res.status(201).json(await service.criar(turmaId));
+        res.status(201).json(await service.criar(turmaId, req.usuario!.id)); // professor que está logado
   });
 
   router.get('/', ...soProfessor, async (req, res) => {

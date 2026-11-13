@@ -7,5 +7,5 @@ export const criarSessaoSchema = z.object({
 // Filtros da listagem: GET /api/sessoes?turmaId=1&status=ENCERRADA
 export const filtroSessoesSchema = z.object({
   turmaId: z.coerce.number().int().positive().optional(),
-  status: z.enum(['AGUARDANDO', 'ABERTA', 'ENCERRADA']).optional(),
+  status: z.enum(['CRIADA', 'ABERTA', 'ENCERRADA']).optional(),
 });
