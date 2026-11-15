@@ -4,7 +4,7 @@
  * Turma 1──N Sessão (cada aula é uma sessão)       → tabelas TURMA, SESSAO_AULA
  * Turma 1──N Aluno  (reconhecido por nome + idade) → tabela ALUNO
  * Sessão N──N Aluno (quem entrou em qual aula)     → tabela PARTICIPACAO
- * Nível 1──N Fase                                   → tabelas NIVEL, FASE
+ * Nível 1──N Fase 1──N Desafio                      → tabelas NIVEL, FASE, DESAFIO
  * Tentativa: cada vez que um aluno termina uma fase → tabela TENTATIVA_FASE
  * Progresso: melhor resultado do aluno em cada fase → tabela PROGRESSO_FASE (mantida pela trigger)
  * Ranking congelado de cada aula                   → tabela RANKING_SESSAO
@@ -76,7 +76,18 @@ export interface Fase {
   titulo: string;
   tipo: TipoFase;
 }
+/** Cada pergunta/tarefa de uma fase. A fase é jogada respondendo seus desafios em ordem. */
+export interface Desafio {
+  id: number;
+  faseId: number;
+  ordem: number; // posição do desafio dentro da fase
+  enunciado: string; // o que aparece para a criança (ex.: "Digite a letra A")
+  respostaCorreta: string; // NUNCA vai para o aluno: a correção é feita no back-end (Etapa 7)
+  pontos: number; // pontos ganhos ao acertar (padrão 100)
+}
 
+/** O que o ALUNO recebe: o desafio SEM a resposta correta. */
+export type DesafioParaAluno = Omit<Desafio, 'respostaCorreta'>;
 /** Fase já acompanhada do seu nível (facilita ordenar por nível → fase). */
 export interface FaseComNivel extends Fase {
   nivel: Nivel;

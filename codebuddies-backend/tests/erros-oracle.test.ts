@@ -24,6 +24,12 @@ describe('Tradução de erros do Oracle', () => {
     expect(traduzirErroOracle(aluno)).toMatchObject({ code: 'ALUNO_JA_EXISTE' });
   });
 
+  it('Etapa 6: posição de fase repetida e apagar algo em uso', () => {
+    const fase = erroOracle(1, 'ORA-00001: unique constraint (CODEBUDDIES.UQ_FASE_NIVEL_ORDEM) violated');
+    expect(traduzirErroOracle(fase)).toMatchObject({ code: 'ORDEM_FASE_DUPLICADA' });
+    expect(traduzirErroOracle(erroOracle(2292))).toMatchObject({ code: 'CONTEUDO_EM_USO' });
+  });
+  
   it('erro desconhecido passa adiante sem mudar', () => {
     const outro = erroOracle(12541, 'ORA-12541: TNS:no listener');
     expect(traduzirErroOracle(outro)).toBe(outro);

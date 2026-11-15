@@ -1,27 +1,26 @@
 import type {
   Aluno,
-  FaseComNivel,
+  Desafio,
+  Fase,
   Nivel,
   Participacao,
+  Professor,
   Progresso,
   RankingFinal,
   Sessao,
   Tentativa,
   Turma,
-  Professor,
 } from '../../domain/entidades.js';
-import type { Repositorios } from '../contratos.js';
-import { conteudoInicial } from './conteudo-inicial.js';
 import { consolidarProgresso } from '../../domain/regras/progressao.js';
+import type { Repositorios } from '../contratos.js';
+import { conteudoInicial, type ConteudoInicial } from './conteudo-inicial.js';
 
 /**
  * Implementação EM MEMÓRIA dos repositórios.
  * Usada em testes e no desenvolvimento enquanto o banco Oracle não está pronto.
  * Os dados somem quando o servidor reinicia.
  */
-export function criarRepositoriosEmMemoria(
-  conteudo: { niveis: Nivel[]; fases: FaseComNivel[] } = conteudoInicial(),
-): Repositorios {
+export function criarRepositoriosEmMemoria(conteudo: ConteudoInicial = conteudoInicial()): Repositorios {
   let seq = 0;
   const novoId = () => ++seq;
   const copia = <T>(v: T): T => structuredClone(v);
@@ -34,6 +33,15 @@ export function criarRepositoriosEmMemoria(
   const progressos = new Map<string, Progresso>();
   const rankings = new Map<number, RankingFinal>();
   const chaveProgresso = (alunoId: number, faseId: number) => `${alunoId}:${faseId}`;
+  
+  // Conteúdo: cada tabela tem sua própria sequência de ids, começando depois do conteúdo inicial
+  const niveis = new Map<number, Nivel>(conteudo.niveis.map((n) => [n.id, copia(n)]));
+  const fases = new Map<number, Fase>(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    conteudo.fases.map(({ nivel, ...f }) => [f.id, f]),
+  );
+  const desafios = new Map<number, Desafio>(conteudo.desafios.map((d) => [d.id, copia(d)]));
+  const proximoId = (tabela: Map<number, unknown>) => Math.max(0, ...tabela.keys()) + 1;
   const professores = new Map<number, Professor>();
 
   const repos: Repositorios = {
@@ -168,16 +176,77 @@ export function criarRepositoriosEmMemoria(
       },
     },
 
-    conteudo: {
+        conteudo: {
+      // Níveis
+      async listarNiveis() {
+        return copia([...niveis.values()]);
+      },
+      async buscarNivel(id) {
+        const n = niveis.get(id);
+        return n ? copia(n) : null;
+      },
+      async buscarNivelPorOrdem(ordem) {
+        const n = [...niveis.values()].find((x) => x.ordem === ordem);
+        return n ? copia(n) : null;
+      },
+      async criarNivel(dados) {
+        const n = { id: proximoId(niveis), ...dados };
+        niveis.set(n.id, n);
+        return copia(n);
+      },
+      async atualizarNivel(nivel) {
+        niveis.set(nivel.id, copia(nivel));
+        return copia(nivel);
+      },
+      async removerNivel(id) {
+        niveis.delete(id);
+      },
+
+      // Fases (o nível vai junto, igual ao JOIN do Oracle)
       async listarFases() {
-        return copia(conteudo.fases);
+        return [...fases.values()].map((f) => copia({ ...f, nivel: niveis.get(f.nivelId)! }));
       },
       async buscarFase(id) {
-        const f = conteudo.fases.find((x) => x.id === id);
-        if (!f) return null;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { nivel, ...fase } = f;
+        const f = fases.get(id);
+        return f ? copia(f) : null;
+      },
+      async buscarFasePorOrdem(nivelId, ordem) {
+        const f = [...fases.values()].find((x) => x.nivelId === nivelId && x.ordem === ordem);
+        return f ? copia(f) : null;
+      },
+      async criarFase(dados) {
+        const f = { id: proximoId(fases), ...dados };
+        fases.set(f.id, f);
+        return copia(f);
+      },
+      async atualizarFase(fase) {
+        fases.set(fase.id, copia(fase));
         return copia(fase);
+      },
+      async removerFase(id) {
+        fases.delete(id);
+      },
+
+      // Desafios
+      async listarDesafios(faseId) {
+        const lista = [...desafios.values()].filter((d) => d.faseId === faseId);
+        return copia(lista.sort((a, b) => a.ordem - b.ordem || a.id - b.id));
+      },
+      async buscarDesafio(id) {
+        const d = desafios.get(id);
+        return d ? copia(d) : null;
+      },
+      async criarDesafio(dados) {
+        const d = { id: proximoId(desafios), ...dados };
+        desafios.set(d.id, d);
+        return copia(d);
+      },
+      async atualizarDesafio(desafio) {
+        desafios.set(desafio.id, copia(desafio));
+        return copia(desafio);
+      },
+      async removerDesafio(id) {
+        desafios.delete(id);
       },
     },
 
@@ -192,6 +261,9 @@ export function criarRepositoriosEmMemoria(
       },
       async listarPorSessao(sessaoId) {
         return copia(tentativas.filter((t) => t.sessaoId === sessaoId));
+      },
+            async existeNaFase(faseId) {
+        return tentativas.some((t) => t.faseId === faseId);
       },
     },
 

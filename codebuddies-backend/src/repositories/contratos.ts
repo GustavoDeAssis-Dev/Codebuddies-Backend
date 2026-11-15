@@ -11,14 +11,15 @@ import type {
   StatusSessao,
   Tentativa,
   Turma,
+  Desafio,
+  Nivel,
 } from '../domain/entidades.js';
 
 /**
  * Contratos de acesso a dados.
  *
  * As regras de negócio (services) só conhecem ESTAS interfaces, nunca o banco diretamente.
- * Hoje existe a implementação em memória (src/repositories/memoria) para desenvolver e testar;
- * na Etapa 5 criamos a implementação Oracle com as mesmas assinaturas — sem mexer nas regras.
+ * Duas implementações com as mesmas assinaturas: memória (testes) e Oracle (uso real).
  */
 
 export interface TurmaRepository {
@@ -55,9 +56,31 @@ export interface ParticipacaoRepository {
   listarPorSessao(sessaoId: number): Promise<Participacao[]>;
 }
 
+/** Conteúdo pedagógico: Nível 1──N Fase 1──N Desafio (gerenciado pelo professor — Etapa 6). */
 export interface ConteudoRepository {
+  // Níveis
+  listarNiveis(): Promise<Nivel[]>;
+  buscarNivel(id: number): Promise<Nivel | null>;
+  buscarNivelPorOrdem(ordem: number): Promise<Nivel | null>;
+  criarNivel(dados: Omit<Nivel, 'id'>): Promise<Nivel>;
+  atualizarNivel(nivel: Nivel): Promise<Nivel>;
+  removerNivel(id: number): Promise<void>;
+
+  // Fases
   listarFases(): Promise<FaseComNivel[]>;
   buscarFase(id: number): Promise<Fase | null>;
+  buscarFasePorOrdem(nivelId: number, ordem: number): Promise<Fase | null>;
+  criarFase(dados: Omit<Fase, 'id'>): Promise<Fase>;
+  atualizarFase(fase: Fase): Promise<Fase>;
+  removerFase(id: number): Promise<void>;
+
+  // Desafios
+  /** Desafios da fase, já em ordem. */
+  listarDesafios(faseId: number): Promise<Desafio[]>;
+  buscarDesafio(id: number): Promise<Desafio | null>;
+  criarDesafio(dados: Omit<Desafio, 'id'>): Promise<Desafio>;
+  atualizarDesafio(desafio: Desafio): Promise<Desafio>;
+  removerDesafio(id: number): Promise<void>;
 }
   /**
    * Grava a tentativa. O PROGRESSO é atualizado junto, automaticamente:
@@ -66,6 +89,8 @@ export interface ConteudoRepository {
 export interface TentativaRepository {
   criar(dados: Omit<Tentativa, 'id'>): Promise<Tentativa>;
   listarPorSessao(sessaoId: number): Promise<Tentativa[]>;
+    /** true se algum aluno já jogou esta fase (aí ela não pode mais ser apagada). */
+  existeNaFase(faseId: number): Promise<boolean>;
 }
 
 export interface ProgressoRepository {

@@ -1,6 +1,7 @@
 /**
  * Verifica a integração com o Oracle rodando um FLUXO COMPLETO de aula no banco real:
- * professor → turma → aula → abrir → aluno entra → joga uma fase → encerra → ranking.
+ * professor → turma → aula → abrir → aluno entra → conteúdo (nível/fase/desafio) → abre a fase
+ * → joga → encerra → ranking.
  *
  * Tudo acontece dentro de UMA transação que é DESFEITA no final (ROLLBACK):
  * nada fica gravado no banco. Pode rodar quantas vezes quiser.
@@ -10,6 +11,8 @@
 import { criarDataSource } from '../src/database/data-source.js';
 import { AlunosService } from '../src/modules/alunos/alunos.service.js';
 import { AuthService } from '../src/modules/auth/auth.service.js';
+import { ConteudoService } from '../src/modules/conteudo/conteudo.service.js';
+import { JogoService } from '../src/modules/jogo/jogo.service.js';
 import { ProgressoService } from '../src/modules/progresso/progresso.service.js';
 import { RankingService } from '../src/modules/ranking/ranking.service.js';
 import { SessoesService } from '../src/modules/sessoes/sessoes.service.js';
@@ -62,11 +65,41 @@ try {
       `aluno entrou (id ${entrada.aluno.id}) e foi reconhecido de novo: ${volta.aluno.id === entrada.aluno.id}`,
     );
 
+    // Etapa 6 — cadastro de conteúdo (nível → fase → desafio)
+    const conteudo = new ConteudoService(ctx);
+    const nivel = await conteudo.criarNivel({ titulo: 'Nível de Verificação' });
+    const fase = await conteudo.criarFase({
+      nivelId: nivel.id,
+      titulo: 'Fase de Verificação',
+      tipo: 'LOGICA',
+    });
+    await conteudo.criarDesafio(fase.id, { enunciado: 'Quanto é 1 + 1?', respostaCorreta: '2' });
+    await conteudo.criarDesafio(fase.id, { enunciado: 'Quanto é 2 + 2?', respostaCorreta: '4', pontos: 150 });
+    const detalhe = await conteudo.buscarFase(fase.id);
+    ok(`conteúdo criado: nível ${nivel.ordem}, fase "${fase.titulo}" com ${detalhe.desafios.length} desafios`);
+    try {
+      await conteudo.criarFase({ nivelId: nivel.id, ordem: fase.ordem, titulo: 'Repetida', tipo: 'LOGICA' });
+      console.log('  ❌ duas fases na mesma posição do nível');
+    } catch (erro) {
+      ok(`fase na mesma posição barrada: ${(erro as { code?: string }).code}`);
+    }
+
     const mapa = await new ProgressoService(ctx).mapaDoAluno(entrada.aluno.id);
     const primeira = mapa.fases[0];
     if (!primeira) {
       console.log('  ⚠️  não há fases cadastradas (tabelas NIVEL/FASE vazias) — pulando a jogada');
     } else {
+      // Etapa 6 — o aluno abre a fase: recebe os desafios SEM a resposta correta
+      try {
+        const paraJogar = await new JogoService(ctx).abrirFase(entrada.aluno.id, primeira.faseId);
+        const vazou = JSON.stringify(paraJogar).includes('respostaCorreta');
+        ok(`aluno abriu "${primeira.titulo}": ${paraJogar.totalDesafios} desafios, resposta escondida: ${!vazou}`);
+      } catch (erro) {
+        console.log(
+          `  ⚠️  não abriu "${primeira.titulo}": ${(erro as { code?: string }).code} (cadastre desafios nela)`,
+        );
+      }
+
       const r = await new TentativasService(ctx).registrar(entrada.aluno.id, {
         faseId: primeira.faseId,
         acertos: 8,

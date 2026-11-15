@@ -33,9 +33,35 @@ export const Erros = {
   alunoForaDaSessao: () => new AppError('Você precisa entrar na aula primeiro.', 403, 'ALUNO_FORA_DA_SESSAO'),
   alunoJaExiste: () => new AppError('Já existe um aluno com este nome e idade nesta turma.', 409, 'ALUNO_JA_EXISTE'),
 
-  // Fases
+   // Conteúdo: níveis, fases e desafios (Etapa 6)
+  nivelNaoEncontrado: () => new AppError('Nível não encontrado.', 404, 'NIVEL_NAO_ENCONTRADO'),
+  nivelDuplicado: () => new AppError('Já existe um nível com este número.', 409, 'NIVEL_DUPLICADO'),
+  nivelComFases: () =>
+    new AppError('Este nível tem fases. Remova ou mova as fases antes.', 409, 'NIVEL_COM_FASES'),
   faseNaoEncontrada: () => new AppError('Fase não encontrada.', 404, 'FASE_NAO_ENCONTRADA'),
-  faseBloqueada: () => new AppError('Esta fase ainda está bloqueada. Conclua a anterior!', 403, 'FASE_BLOQUEADA'), // RN07 / RN13
+  faseBloqueada: () =>
+    new AppError('Esta fase ainda está bloqueada. Conclua a anterior!', 403, 'FASE_BLOQUEADA'), // RN07 / RN13
+  ordemFaseDuplicada: () =>
+    new AppError('Já existe uma fase nesta posição deste nível.', 409, 'ORDEM_FASE_DUPLICADA'),
+  faseComDesafios: () =>
+    new AppError('Esta fase tem desafios. Remova os desafios antes.', 409, 'FASE_COM_DESAFIOS'),
+  faseJaJogada: () =>
+    new AppError(
+      'Esta fase já foi jogada por alunos: não pode ser apagada nem perder desafios.',
+      409,
+      'FASE_JA_JOGADA',
+    ),
+  faseSemDesafios: () =>
+    new AppError('Esta fase ainda não tem desafios. Fale com o professor.', 409, 'FASE_SEM_DESAFIOS'),
+  desafioNaoEncontrado: () => new AppError('Desafio não encontrado.', 404, 'DESAFIO_NAO_ENCONTRADO'),
+  ordemDesafioDuplicada: () =>
+    new AppError('Já existe um desafio nesta posição desta fase.', 409, 'ORDEM_DESAFIO_DUPLICADA'),
+  conteudoEmUso: () =>
+    new AppError(
+      'Este item está sendo usado por outros dados e não pode ser apagado.',
+      409,
+      'CONTEUDO_EM_USO',
+    ),
 
   // Ranking
   rankingIndisponivel: () => new AppError('O ranking aparece quando o professor encerrar a aula.', 403, 'RANKING_INDISPONIVEL'), // RN08 / CA08

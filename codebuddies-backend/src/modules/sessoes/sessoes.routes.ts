@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Contexto } from '../../shared/contexto.js';
-import { lerId } from '../../shared/http/param.js';
+import { lerId } from '../../shared/http/params.js';
 import { autenticar, exigirPerfil } from '../../shared/middlewares/autenticar.js';
 import { AlunosService } from '../alunos/alunos.service.js';
 import { RankingService } from '../ranking/ranking.service.js';

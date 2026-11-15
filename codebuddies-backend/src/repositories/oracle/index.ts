@@ -1,7 +1,9 @@
 import type { EntityManager } from 'typeorm';
 import {
   AlunoEntity,
+  DesafioEntity,
   FaseEntity,
+  NivelEntity,
   ParticipacaoEntity,
   ProfessorEntity,
   ProgressoFaseEntity,
@@ -12,7 +14,16 @@ import {
 } from '../../database/entidades.js';
 import type { Repositorios } from '../contratos.js';
 import { comTraducaoDeErros, ehValorDuplicado } from './erros-oracle.js';
-import { paraAluno, paraFase, paraProgresso, paraSessao, paraTentativa } from './mapeadores.js';
+import {
+  paraAluno,
+  paraDesafio,
+  paraFase,
+  paraFaseComNivel,
+  paraNivel,
+  paraProgresso,
+  paraSessao,
+  paraTentativa,
+} from './mapeadores.js';
 
 /**
  * Implementação ORACLE dos repositórios (mesmos contratos da implementação em memória).
@@ -26,7 +37,9 @@ export function criarRepositoriosOracle(manager: EntityManager): Repositorios {
   const sessoes = manager.getRepository(SessaoAulaEntity);
   const alunos = manager.getRepository(AlunoEntity);
   const participacoes = manager.getRepository(ParticipacaoEntity);
+  const niveis = manager.getRepository(NivelEntity);
   const fases = manager.getRepository(FaseEntity);
+  const desafios = manager.getRepository(DesafioEntity);
   const tentativas = manager.getRepository(TentativaFaseEntity);
   const progressos = manager.getRepository(ProgressoFaseEntity);
   const rankings = manager.getRepository(RankingSessaoEntity);
@@ -135,17 +148,71 @@ export function criarRepositoriosOracle(manager: EntityManager): Repositorios {
       },
     }),
 
-    conteudo: comTraducaoDeErros({
+        conteudo: comTraducaoDeErros({
+      // Níveis (no banco a coluna é NUMERO_NIVEL; no domínio é `ordem`)
+      async listarNiveis() {
+        return (await niveis.find({ order: { numero: 'ASC' } })).map(paraNivel);
+      },
+      async buscarNivel(id) {
+        const n = await niveis.findOneBy({ id });
+        return n ? paraNivel(n) : null;
+      },
+      async buscarNivelPorOrdem(ordem) {
+        const n = await niveis.findOneBy({ numero: ordem });
+        return n ? paraNivel(n) : null;
+      },
+      async criarNivel(dados) {
+        const { ordem, ...resto } = dados;
+        return paraNivel(await niveis.save(niveis.create({ ...resto, numero: ordem })));
+      },
+      async atualizarNivel(nivel) {
+        const { ordem, ...resto } = nivel;
+        return paraNivel(await niveis.save(niveis.create({ ...resto, numero: ordem })));
+      },
+      async removerNivel(id) {
+        await niveis.delete({ id });
+      },
+
+      // Fases
       async listarFases() {
-        const lista = await fases.find({ relations: { nivel: true } });
-        return lista.map((f) => paraFase(f));
+        const lista = await fases.find({ relations: { nivel: true } }); // JOIN com NIVEL
+        return lista.map(paraFaseComNivel);
       },
       async buscarFase(id) {
-        const f = await fases.findOne({ where: { id }, relations: { nivel: true } });
-        if (!f) return null;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { nivel, ...fase } = paraFase(f);
-        return fase;
+        const f = await fases.findOneBy({ id });
+        return f ? paraFase(f) : null;
+      },
+      async buscarFasePorOrdem(nivelId, ordem) {
+        const f = await fases.findOneBy({ nivelId, ordem });
+        return f ? paraFase(f) : null;
+      },
+      async criarFase(dados) {
+        return paraFase(await fases.save(fases.create(dados)));
+      },
+      async atualizarFase(fase) {
+        return paraFase(await fases.save(fases.create(fase)));
+      },
+      async removerFase(id) {
+        await fases.delete({ id });
+      },
+
+      // Desafios
+      async listarDesafios(faseId) {
+        const lista = await desafios.find({ where: { faseId }, order: { ordem: 'ASC', id: 'ASC' } });
+        return lista.map(paraDesafio);
+      },
+      async buscarDesafio(id) {
+        const d = await desafios.findOneBy({ id });
+        return d ? paraDesafio(d) : null;
+      },
+      async criarDesafio(dados) {
+        return paraDesafio(await desafios.save(desafios.create(dados)));
+      },
+      async atualizarDesafio(desafio) {
+        return paraDesafio(await desafios.save(desafios.create(desafio)));
+      },
+      async removerDesafio(id) {
+        await desafios.delete({ id });
       },
     }),
 
@@ -157,6 +224,7 @@ export function criarRepositoriosOracle(manager: EntityManager): Repositorios {
       async listarPorSessao(sessaoId) {
         return (await tentativas.findBy({ sessaoId })).map(paraTentativa);
       },
+        existeNaFase: (faseId) => tentativas.existsBy({ faseId }),
     }),
 
     progressos: comTraducaoDeErros({

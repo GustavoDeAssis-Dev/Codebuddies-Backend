@@ -1,7 +1,18 @@
-import type { Aluno, FaseComNivel, Progresso, Sessao, Tentativa } from '../../domain/entidades.js';
+import type {
+  Aluno,
+  Desafio,
+  Fase,
+  FaseComNivel,
+  Nivel,
+  Progresso,
+  Sessao,
+  Tentativa,
+} from '../../domain/entidades.js';
 import type {
   AlunoEntity,
+  DesafioEntity,
   FaseEntity,
+  NivelEntity,
   ProgressoFaseEntity,
   SessaoAulaEntity,
   TentativaFaseEntity,
@@ -38,16 +49,29 @@ export function paraAluno(a: AlunoEntity): Aluno {
   };
 }
 
-/** A fase precisa vir com o nível carregado (relations: { nivel: true }). */
-export function paraFase(f: FaseEntity): FaseComNivel {
-  const nivel = f.nivel!;
+/** No banco a coluna é NUMERO_NIVEL; no domínio chamamos de `ordem`. */
+export function paraNivel(n: NivelEntity): Nivel {
+  return { id: n.id, ordem: n.numero, titulo: n.titulo, descricao: n.descricao };
+}
+
+/** Fase sem o nível (para cadastro). */
+export function paraFase(f: FaseEntity): Fase {
+  return { id: f.id, nivelId: f.nivelId, ordem: f.ordem, titulo: f.titulo, tipo: f.tipo };
+}
+
+/** Fase com o nível — exige que a consulta tenha carregado a relação `nivel`. */
+export function paraFaseComNivel(f: FaseEntity): FaseComNivel {
+  return { ...paraFase(f), nivel: paraNivel(f.nivel!) };
+}
+
+export function paraDesafio(d: DesafioEntity): Desafio {
   return {
-    id: f.id,
-    nivelId: f.nivelId,
-    ordem: f.ordem,
-    titulo: f.titulo,
-    tipo: f.tipo,
-    nivel: { id: nivel.id, ordem: nivel.numero, titulo: nivel.titulo, descricao: nivel.descricao },
+    id: d.id,
+    faseId: d.faseId,
+    ordem: d.ordem,
+    enunciado: d.enunciado,
+    respostaCorreta: d.respostaCorreta,
+    pontos: d.pontos,
   };
 }
 

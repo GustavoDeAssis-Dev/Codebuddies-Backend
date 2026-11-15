@@ -1,7 +1,6 @@
 import { createApp } from './app.js';
 import { env } from './config/env.js';
 import { AuthService } from './modules/auth/auth.service.js';
-import { criarContexto } from './shared/contexto.js';
 import { logger } from './shared/logger.js';
 import { criarContextoDoAmbiente, type Contexto } from './shared/contexto.js';
 

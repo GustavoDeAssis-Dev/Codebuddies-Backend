@@ -27,6 +27,7 @@ const UNICOS: Record<string, () => AppError> = {
   UX_SESSAO_ABERTA: Erros.outraSessaoAberta,
   UQ_ALUNO_TURMA: Erros.alunoJaExiste,
   PROFESSOR_EMAIL_UN: Erros.emailJaCadastrado,
+  UQ_FASE_NIVEL_ORDEM: Erros.ordemFaseDuplicada,
 };
 
 interface ErroDoOracle {
@@ -57,7 +58,8 @@ export function traduzirErroOracle(erro: unknown): unknown {
     const traduzido = constraint ? UNICOS[constraint] : undefined;
     if (traduzido) return traduzido();
   }
-
+  // ORA-02292: tentou apagar um registro que tem "filhos" (ex.: fase que já tem tentativas)
+  if (ora.errorNum === 2292) return Erros.conteudoEmUso();
   return erro;
 }
 
