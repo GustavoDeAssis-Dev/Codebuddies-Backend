@@ -206,6 +206,32 @@ Nada é apagado: turmas, alunos e professores são **desativados**, para manter 
 | POST   | `/api/alunos/:id/desativar`     | professor | Desativa (RN10)                                                                     |
 | POST   | `/api/alunos/:id/reativar`      | professor | Reativa                                                                             |
 
+### Conteúdo — somente professor (Etapa 6)
+
+| Método | Rota | Descrição |
+| ------ | ---- | --------- |
+| GET    | `/api/niveis`                | Lista os níveis em ordem |
+| POST   | `/api/niveis`                | Cria `{ titulo, ordem?, descricao? }` (sem `ordem` → vai para o final) |
+| GET    | `/api/niveis/:id`            | Nível + suas fases |
+| PATCH  | `/api/niveis/:id`            | Altera `{ titulo?, ordem?, descricao? }` |
+| DELETE | `/api/niveis/:id`            | Remove (só sem fases) |
+| GET    | `/api/fases`                 | Todas as fases na ordem do jogo |
+| POST   | `/api/fases`                 | Cria `{ nivelId, titulo, tipo, ordem? }` — tipo: DIGITACAO, LOGICA, COMPUTACAO_BASICA |
+| GET    | `/api/fases/:id`             | Fase + nível + desafios (com resposta correta) |
+| PATCH  | `/api/fases/:id`             | Altera/move `{ nivelId?, ordem?, titulo?, tipo? }` |
+| DELETE | `/api/fases/:id`             | Remove (só sem desafios e nunca jogada) |
+| POST   | `/api/fases/:id/desafios`    | Cria `{ enunciado, respostaCorreta, pontos? (100), ordem? }` |
+| GET    | `/api/desafios/:id`          | Um desafio |
+| PATCH  | `/api/desafios/:id`          | Corrige `{ enunciado?, respostaCorreta?, pontos?, ordem? }` |
+| DELETE | `/api/desafios/:id`          | Remove (só se a fase nunca foi jogada) |
+
+### Jogo — somente aluno (Etapa 6)
+
+| Método | Rota | Descrição |
+| ------ | ---- | --------- |
+| GET    | `/api/jogo/mapa`             | Mapa de fases (BLOQUEADA / LIBERADA / CONCLUIDA) e estrelas |
+| GET    | `/api/jogo/fases/:id`        | Desafios da fase **sem a resposta correta** (exige aula aberta e fase liberada) |
+
 ## Formato padrão de erro
 
 ```json
