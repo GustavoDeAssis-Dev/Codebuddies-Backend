@@ -228,6 +228,10 @@ export function criarRepositoriosOracle(manager: EntityManager): Repositorios {
         return (await tentativas.findBy({ sessaoId })).map(paraTentativa);
       },
         existeNaFase: (faseId) => tentativas.existsBy({ faseId }),
+              async listarPorAluno(alunoId) {
+        const lista = await tentativas.find({ where: { alunoId }, order: { id: 'ASC' } });
+        return lista.map(paraTentativa);
+      },
     }),
 
       respostas: comTraducaoDeErros({

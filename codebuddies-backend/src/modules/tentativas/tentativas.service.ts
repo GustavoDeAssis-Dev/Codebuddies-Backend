@@ -6,7 +6,8 @@ import type { Contexto } from '../../shared/contexto.js';
 import { Erros } from '../../shared/errors/erros.js';
 import { JogoService } from '../jogo/jogo.service.js';
 import { registrarTentativaSchema, type RegistrarTentativaInput } from './tentativas.schemas.js';
-
+import { novasConquistas, type Conquista } from '../../domain/regras/conquistas.js';
+import { RecompensasService } from '../recompensas/recompensas.service.js';
 /** ✓ ou ✗ de cada desafio — sem revelar a resposta correta. */
 export interface ResultadoDesafio {
   desafioId: number;
@@ -30,15 +31,17 @@ export interface ResultadoTentativa {
   proximaFaseId: number | null; // fase liberada para "Avançar" (null se não aprovou ou era a última)
   nivelAtual: number;
   estrelasTotais: number;
+  novasConquistas: Conquista[]; // Etapa 8 — medalhas ganhas NESTA jogada (vazio se nenhuma)
 }
 
 export class TentativasService {
   private readonly jogo: JogoService;
+  private readonly recompensas: RecompensasService;
 
   constructor(private readonly ctx: Contexto) {
     this.jogo = new JogoService(ctx);
+    this.recompensas = new RecompensasService(ctx);
   }
-
   /**
    * RF-P07 / RF-P10 / RF-A03 / RN05 / RN06 / RN07 / RN12–RN15 / CA04–CA07 — Etapa 7
    *
@@ -69,6 +72,7 @@ export class TentativasService {
     const correcao = corrigirFase(desafios, dados.respostas);
     const { percentual, estrelas, aprovada } = avaliarDesempenho(correcao.acertos, correcao.erros);
     const anterior = await repos.progressos.buscar(alunoId, fase.id);
+    const conquistasAntes = await this.recompensas.conquistasDoAluno(alunoId);
 
     // Tentativa + respostas juntas: se uma resposta falhar ao gravar, a tentativa também é desfeita
     const tentativa = await repos.transacao(async (r) => {
@@ -100,6 +104,7 @@ export class TentativasService {
     const mapaDepois = montarMapaDeFases(fases, progressos);
     const proxima = aprovada ? proximaFase(mapaDepois, fase.id) : null; // RN13 / RN14
     const ordemDe = new Map(desafios.map((d) => [d.id, d.ordem]));
+    const conquistasDepois = await this.recompensas.conquistasDoAluno(alunoId);
 
     return {
       tentativa,
@@ -121,6 +126,7 @@ export class TentativasService {
       proximaFaseId: proxima?.faseId ?? null,
       nivelAtual: mapaDepois.nivelAtual,
       estrelasTotais: mapaDepois.estrelasTotais,
+      novasConquistas: novasConquistas(conquistasAntes, conquistasDepois),
     };
   }
 

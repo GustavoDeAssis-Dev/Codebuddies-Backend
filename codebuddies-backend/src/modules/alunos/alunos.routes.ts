@@ -3,16 +3,23 @@ import type { Contexto } from '../../shared/contexto.js';
 import { lerId } from '../../shared/http/params.js';
 import { autenticar, exigirPerfil } from '../../shared/middlewares/autenticar.js';
 import { AlunosService } from './alunos.service.js';
+import { RecompensasService } from '../recompensas/recompensas.service.js';
 
 /** Gestão de alunos pelo professor (o aluno entra por /api/auth/aluno/entrar). */
 export function alunosRoutes(ctx: Contexto) {
   const router = Router();
   const service = new AlunosService(ctx);
+  const recompensas = new RecompensasService(ctx);
 
   router.use(autenticar, exigirPerfil('PROFESSOR'));
 
   router.get('/:id', async (req, res) => {
     res.json(await service.buscar(lerId(req)));
+  });
+
+  // GET /api/alunos/:id/conquistas — o professor vê as recompensas de um aluno
+  router.get('/:id/conquistas', async (req, res) => {
+    res.json(await recompensas.painel(lerId(req)));
   });
 
   // Corrigir nome / idade / personagem

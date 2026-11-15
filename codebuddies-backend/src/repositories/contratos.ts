@@ -92,6 +92,8 @@ export interface TentativaRepository {
   listarPorSessao(sessaoId: number): Promise<Tentativa[]>;
     /** true se algum aluno já jogou esta fase (aí ela não pode mais ser apagada). */
   existeNaFase(faseId: number): Promise<boolean>;
+    /** Todas as jogadas do aluno (usado nas conquistas — Etapa 8). */
+  listarPorAluno(alunoId: number): Promise<Tentativa[]>;
 }
 
 /** Respostas corrigidas de cada desafio → tabela RESPOSTA_DESAFIO (Etapa 7). */

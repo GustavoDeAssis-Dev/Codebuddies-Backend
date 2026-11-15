@@ -267,6 +267,9 @@ export function criarRepositoriosEmMemoria(conteudo: ConteudoInicial = conteudoI
             async existeNaFase(faseId) {
         return tentativas.some((t) => t.faseId === faseId);
       },
+            async listarPorAluno(alunoId) {
+        return copia(tentativas.filter((t) => t.alunoId === alunoId));
+      },
     },
 
     respostas: {

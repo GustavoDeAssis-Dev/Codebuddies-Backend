@@ -252,4 +252,56 @@ describe('Jogo (aluno)', () => {
     const res = await comToken(token).get('/api/jogo/fases/1');
     expect(res.body.error.code).toBe('SESSAO_FECHADA');
   });
+
+    it('GET /api/jogo/conquistas: aluno novo começa com tudo bloqueado', async () => {
+    const { token } = await alunoNaAula();
+    const res = await comToken(token).get('/api/jogo/conquistas');
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      estrelasTotais: 0,
+      pontosTotais: 0,
+      fasesConcluidas: 0,
+      totalFases: 6,
+      totalConquistadas: 0,
+    });
+    expect(res.body.conquistas).toHaveLength(6);
+  });
+
+  it('acertar tudo na primeira fase dá "Primeira estrela" e "Perfeito!" (só uma vez)', async () => {
+    const { token } = await alunoNaAula();
+    const tudoCerto = {
+      tempoSegundos: 20,
+      respostas: [
+        { desafioId: 1, resposta: '3' },
+        { desafioId: 2, resposta: 'azul' },
+        { desafioId: 3, resposta: '2' },
+      ],
+    };
+
+    const res = await comToken(token).post('/api/jogo/fases/1/respostas', tudoCerto);
+    expect(res.body.novasConquistas.map((c: { codigo: string }) => c.codigo)).toEqual([
+      'PRIMEIRA_FASE',
+      'PERFEITO',
+    ]);
+
+    const painel = await comToken(token).get('/api/jogo/conquistas');
+    expect(painel.body).toMatchObject({
+      estrelasTotais: 5,
+      pontosTotais: 300,
+      fasesConcluidas: 1,
+      totalConquistadas: 2,
+    });
+
+    // Jogar de novo com o mesmo resultado não dá medalha repetida
+    const deNovo = await comToken(token).post('/api/jogo/fases/1/respostas', tudoCerto);
+    expect(deNovo.body.novasConquistas).toEqual([]);
+  });
+
+  it('professor vê as conquistas de um aluno', async () => {
+    const { alunoId } = await alunoNaAula();
+    const res = await prof().get(`/api/alunos/${alunoId}/conquistas`);
+    expect(res.status).toBe(200);
+    expect(res.body.conquistas).toHaveLength(6);
+    expect((await prof().get('/api/alunos/999/conquistas')).status).toBe(404);
+  });
 });

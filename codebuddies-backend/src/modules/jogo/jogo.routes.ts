@@ -4,17 +4,24 @@ import { lerId } from '../../shared/http/params.js';
 import { autenticar, exigirPerfil } from '../../shared/middlewares/autenticar.js';
 import { JogoService } from './jogo.service.js';
 import { TentativasService } from '../tentativas/tentativas.service.js';
+import { RecompensasService } from '../recompensas/recompensas.service.js';
 
 /** Etapa 6 — rotas do ALUNO (o id do aluno vem do token, nunca da URL). */
 export function jogoRoutes(ctx: Contexto) {
   const router = Router();
   const service = new JogoService(ctx);
   const tentativas = new TentativasService(ctx);
+  const recompensas = new RecompensasService(ctx);
   router.use(autenticar, exigirPerfil('ALUNO'));
 
   // GET /api/jogo/mapa — fases com status (BLOQUEADA / LIBERADA / CONCLUIDA) e estrelas
   router.get('/mapa', async (req, res) => {
     res.json(await service.mapa(req.usuario!.id));
+  });
+
+  // GET /api/jogo/conquistas — Etapa 8: estrelas, pontos e medalhas do aluno
+  router.get('/conquistas', async (req, res) => {
+    res.json(await recompensas.painel(req.usuario!.id));
   });
 
   // GET /api/jogo/fases/:id — desafios da fase, SEM as respostas

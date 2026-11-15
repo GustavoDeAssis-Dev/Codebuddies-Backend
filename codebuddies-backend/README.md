@@ -14,7 +14,7 @@ Responsável: **Gustavo De Assis Vieira Dos Santos** — FEMA/IMESA, Análise e 
 | 5. Integração com o banco Oracle (com Leonardo)  | ✅ concluída |
 | 6. Gerenciamento de fases e desafios             | ✅ concluída |
 | 7. Registro de respostas, tentativas e progresso | ✅ concluída |
-| 8. Pontuação, estrelas e recompensas             | ⬜           |
+| 8. Pontuação, estrelas e recompensas             | ✅ concluída |
 | 9. Dados para o front-end                        | ⬜           |
 | 10. Tratamento de erros e validação              | ⬜           |
 | 11. Validação com os integrantes                 | ⬜           |
@@ -226,7 +226,7 @@ Nada é apagado: turmas, alunos e professores são **desativados**, para manter 
 | GET    | `/api/desafios/:id`          | Um desafio |
 | PATCH  | `/api/desafios/:id`          | Corrige `{ enunciado?, respostaCorreta?, pontos?, ordem? }` |
 | DELETE | `/api/desafios/:id`          | Remove (só se a fase nunca foi jogada) |
-
+| GET    | `/api/alunos/:id/conquistas` | Painel de recompensas de um aluno |
 ### Jogo — somente aluno (Etapa 6)
 
 | Método | Rota | Descrição |
@@ -234,7 +234,7 @@ Nada é apagado: turmas, alunos e professores são **desativados**, para manter 
 | GET    | `/api/jogo/mapa`             | Mapa de fases (BLOQUEADA / LIBERADA / CONCLUIDA) e estrelas |
 | GET    | `/api/jogo/fases/:id`        | Desafios da fase **sem a resposta correta** (exige aula aberta e fase liberada) |
 | POST   | `/api/jogo/fases/:id/respostas` | Envia `{ tempoSegundos, respostas: [{ desafioId, resposta }] }`; o back corrige e devolve estrelas, pontos e ✓/✗ de cada desafio |
-
+| GET    | `/api/jogo/conquistas` | Painel de recompensas: estrelas, pontos, fases concluídas e as 6 conquistas (ganhas e bloqueadas) |
 ## Formato padrão de erro
 
 ```json

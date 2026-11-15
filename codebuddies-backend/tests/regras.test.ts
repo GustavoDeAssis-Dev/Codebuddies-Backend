@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Progresso } from '../src/domain/entidades.js';
+import type { Progresso, Tentativa } from '../src/domain/entidades.js';
 import {
   avaliarDesempenho,
   calcularPercentual,
@@ -10,6 +10,7 @@ import { montarMapaDeFases, consolidarProgresso } from '../src/domain/regras/pro
 import { montarRanking } from '../src/domain/regras/ranking.js';
 import { conteudoInicial } from '../src/repositories/memoria/conteudo-inicial.js';
 import { corrigirFase, estaCorreta, normalizarResposta } from '../src/domain/regras/correcao.js';
+import { calcularConquistas, novasConquistas } from '../src/domain/regras/conquistas.js';
 
 describe('Estrelas por porcentagem de acertos (RF-P10 / RN05)', () => {
   it.each([
@@ -215,5 +216,72 @@ describe('Correção das respostas (Etapa 7)', () => {
       [1, false],
       [2, true],
     ]);
+  });
+});
+
+describe('Conquistas (Etapa 8)', () => {
+  const { fases } = conteudoInicial(); // 3 níveis, 6 fases (nível 1 = fases 1 e 2)
+  const prog = (faseId: number, estrelas: number): Progresso => ({
+    alunoId: 1,
+    faseId,
+    melhorEstrelas: estrelas,
+    pontuacaoMaxima: estrelas * 100,
+    concluida: estrelas >= 3,
+    atualizadoEm: new Date(),
+  });
+  const tent = (id: number, faseId: number, estrelas: number): Tentativa => ({
+    id,
+    alunoId: 1,
+    faseId,
+    sessaoId: 1,
+    percentual: 0,
+    estrelas,
+    pontos: 0,
+    aprovada: estrelas >= 3,
+    tempoSegundos: 10,
+    dataHora: new Date(2026, 0, 1, 10, id), // a tentativa 2 é depois da 1
+  });
+  const ganhas = (progressos: Progresso[], tentativas: Tentativa[] = []) =>
+    calcularConquistas({ fases, progressos, tentativas })
+      .filter((c) => c.conquistada)
+      .map((c) => c.codigo);
+
+  it('aluno novo vê as 6 conquistas, todas bloqueadas', () => {
+    const lista = calcularConquistas({ fases, progressos: [], tentativas: [] });
+    expect(lista).toHaveLength(6);
+    expect(lista.every((c) => !c.conquistada)).toBe(true);
+  });
+
+  it('primeira fase concluída e 5 estrelas', () => {
+    expect(ganhas([prog(1, 2)])).toEqual([]); // 2 estrelas não conclui
+    expect(ganhas([prog(1, 3)])).toEqual(['PRIMEIRA_FASE']);
+    expect(ganhas([prog(1, 5)])).toEqual(['PRIMEIRA_FASE', 'PERFEITO']);
+  });
+
+  it('subiu de nível só ao concluir TODAS as fases do nível', () => {
+    expect(ganhas([prog(1, 3)])).not.toContain('SUBIU_DE_NIVEL');
+    expect(ganhas([prog(1, 3), prog(2, 3)])).toContain('SUBIU_DE_NIVEL');
+  });
+
+  it('não desistiu: refez a fase e MELHOROU', () => {
+    expect(ganhas([prog(1, 4)], [tent(1, 1, 2), tent(2, 1, 4)])).toContain('NAO_DESISTIU');
+    expect(ganhas([prog(1, 4)], [tent(1, 1, 4), tent(2, 1, 2)])).not.toContain('NAO_DESISTIU'); // piorou
+    expect(ganhas([prog(1, 4)], [tent(1, 1, 4)])).not.toContain('NAO_DESISTIU'); // jogou uma vez só
+  });
+
+  it('todas as fases com 5 estrelas → colecionador e mestre', () => {
+    expect(ganhas(fases.map((f) => prog(f.id, 5)))).toEqual([
+      'PRIMEIRA_FASE',
+      'PERFEITO',
+      'SUBIU_DE_NIVEL',
+      'COLECIONADOR',
+      'MESTRE',
+    ]);
+  });
+
+  it('novasConquistas mostra só o que acabou de ganhar', () => {
+    const antes = calcularConquistas({ fases, progressos: [prog(1, 3)], tentativas: [] });
+    const depois = calcularConquistas({ fases, progressos: [prog(1, 5)], tentativas: [] });
+    expect(novasConquistas(antes, depois).map((c) => c.codigo)).toEqual(['PERFEITO']);
   });
 });
