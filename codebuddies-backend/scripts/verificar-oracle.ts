@@ -1,7 +1,7 @@
 /**
  * Verifica a integração com o Oracle rodando um FLUXO COMPLETO de aula no banco real:
  * professor → turma → aula → abrir → aluno entra → conteúdo (nível/fase/desafio) → abre a fase
- * → joga → encerra → ranking.
+ * → responde os desafios → encerra → ranking.
  *
  * Tudo acontece dentro de UMA transação que é DESFEITA no final (ROLLBACK):
  * nada fica gravado no banco. Pode rodar quantas vezes quiser.
@@ -89,29 +89,39 @@ try {
     if (!primeira) {
       console.log('  ⚠️  não há fases cadastradas (tabelas NIVEL/FASE vazias) — pulando a jogada');
     } else {
-      // Etapa 6 — o aluno abre a fase: recebe os desafios SEM a resposta correta
-      try {
+      const desafios = await ctx.repos.conteudo.listarDesafios(primeira.faseId);
+      if (desafios.length === 0) {
+        console.log(`  ⚠️  "${primeira.titulo}" não tem desafios cadastrados — pulando a jogada`);
+      } else {
+        // Etapa 6 — o aluno abre a fase: recebe os desafios SEM a resposta correta
         const paraJogar = await new JogoService(ctx).abrirFase(entrada.aluno.id, primeira.faseId);
         const vazou = JSON.stringify(paraJogar).includes('respostaCorreta');
         ok(`aluno abriu "${primeira.titulo}": ${paraJogar.totalDesafios} desafios, resposta escondida: ${!vazou}`);
-      } catch (erro) {
-        console.log(
-          `  ⚠️  não abriu "${primeira.titulo}": ${(erro as { code?: string }).code} (cadastre desafios nela)`,
+
+        // Etapa 7 — responde tudo certo (em minúsculas), menos o último desafio, que fica em branco
+        const respostas = desafios.map((d, i) => ({
+          desafioId: d.id,
+          resposta: i < desafios.length - 1 ? d.respostaCorreta.toLowerCase() : '',
+        }));
+        const r = await new TentativasService(ctx).registrar(entrada.aluno.id, {
+          faseId: primeira.faseId,
+          tempoSegundos: 40,
+          respostas,
+        });
+        ok(
+          `respondeu "${primeira.titulo}": ${r.acertos}/${desafios.length} certas → ${r.percentual}% → ${r.estrelas} estrelas, ${r.pontos} pontos`,
+        );
+
+        const gravadas = await ctx.repos.respostas.listarPorTentativa(r.tentativa.id);
+        ok(
+          `RESPOSTA_DESAFIO gravou ${gravadas.length} linha(s), ${gravadas.filter((g) => g.acertou).length} certa(s)`,
+        );
+
+        const depois = await new ProgressoService(ctx).mapaDoAluno(entrada.aluno.id);
+        ok(
+          `trigger gravou o progresso: fase ${depois.fases[0]!.status}, ${depois.estrelasTotais} estrelas no total`,
         );
       }
-
-      const r = await new TentativasService(ctx).registrar(entrada.aluno.id, {
-        faseId: primeira.faseId,
-        acertos: 8,
-        erros: 2,
-        tempoSegundos: 40,
-      });
-      ok(`jogou "${primeira.titulo}": ${r.percentual}% → ${r.estrelas} estrelas, ${r.pontos} pontos`);
-
-      const depois = await new ProgressoService(ctx).mapaDoAluno(entrada.aluno.id);
-      ok(
-        `trigger gravou o progresso: fase ${depois.fases[0]!.status}, ${depois.estrelasTotais} estrelas no total`,
-      );
     }
 
     const { ranking } = await sessoes.encerrar(sessao.id);

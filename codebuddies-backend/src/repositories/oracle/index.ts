@@ -11,6 +11,7 @@ import {
   SessaoAulaEntity,
   TentativaFaseEntity,
   TurmaEntity,
+  RespostaDesafioEntity,
 } from '../../database/entidades.js';
 import type { Repositorios } from '../contratos.js';
 import { comTraducaoDeErros, ehValorDuplicado } from './erros-oracle.js';
@@ -23,6 +24,7 @@ import {
   paraProgresso,
   paraSessao,
   paraTentativa,
+  paraResposta,
 } from './mapeadores.js';
 
 /**
@@ -43,6 +45,7 @@ export function criarRepositoriosOracle(manager: EntityManager): Repositorios {
   const tentativas = manager.getRepository(TentativaFaseEntity);
   const progressos = manager.getRepository(ProgressoFaseEntity);
   const rankings = manager.getRepository(RankingSessaoEntity);
+  const respostasDesafio = manager.getRepository(RespostaDesafioEntity);
 
   /** Busca a sessão de novo depois de uma procedure (para devolver os dados atualizados). */
   const recarregarSessao = async (id: number) => paraSessao(await sessoes.findOneByOrFail({ id }));
@@ -225,6 +228,19 @@ export function criarRepositoriosOracle(manager: EntityManager): Repositorios {
         return (await tentativas.findBy({ sessaoId })).map(paraTentativa);
       },
         existeNaFase: (faseId) => tentativas.existsBy({ faseId }),
+    }),
+
+      respostas: comTraducaoDeErros({
+      async registrar(tentativaId, itens) {
+        // Uma linha por desafio. Roda dentro da transação da tentativa: ou grava tudo, ou nada.
+        for (const item of itens) {
+          await respostasDesafio.insert({ tentativaId, ...item });
+        }
+      },
+      async listarPorTentativa(tentativaId) {
+        const lista = await respostasDesafio.find({ where: { tentativaId }, order: { id: 'ASC' } });
+        return lista.map(paraResposta);
+      },
     }),
 
     progressos: comTraducaoDeErros({

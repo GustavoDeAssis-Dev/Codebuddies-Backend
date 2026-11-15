@@ -10,6 +10,7 @@ import type {
   Sessao,
   Tentativa,
   Turma,
+  RespostaDesafio,
 } from '../../domain/entidades.js';
 import { consolidarProgresso } from '../../domain/regras/progressao.js';
 import type { Repositorios } from '../contratos.js';
@@ -30,6 +31,7 @@ export function criarRepositoriosEmMemoria(conteudo: ConteudoInicial = conteudoI
   const alunos = new Map<number, Aluno>();
   const participacoes: Participacao[] = [];
   const tentativas: Tentativa[] = [];
+  const respostasDesafio: RespostaDesafio[] = [];
   const progressos = new Map<string, Progresso>();
   const rankings = new Map<number, RankingFinal>();
   const chaveProgresso = (alunoId: number, faseId: number) => `${alunoId}:${faseId}`;
@@ -264,6 +266,15 @@ export function criarRepositoriosEmMemoria(conteudo: ConteudoInicial = conteudoI
       },
             async existeNaFase(faseId) {
         return tentativas.some((t) => t.faseId === faseId);
+      },
+    },
+
+    respostas: {
+      async registrar(tentativaId, itens) {
+        for (const item of itens) respostasDesafio.push({ id: novoId(), tentativaId, ...item });
+      },
+      async listarPorTentativa(tentativaId) {
+        return copia(respostasDesafio.filter((r) => r.tentativaId === tentativaId));
       },
     },
 

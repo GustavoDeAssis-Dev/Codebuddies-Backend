@@ -56,6 +56,11 @@ export const Erros = {
   desafioNaoEncontrado: () => new AppError('Desafio não encontrado.', 404, 'DESAFIO_NAO_ENCONTRADO'),
   ordemDesafioDuplicada: () =>
     new AppError('Já existe um desafio nesta posição desta fase.', 409, 'ORDEM_DESAFIO_DUPLICADA'),
+    // Respostas (Etapa 7)
+  desafioForaDaFase: () =>
+    new AppError('Uma das respostas não é de um desafio desta fase.', 400, 'DESAFIO_FORA_DA_FASE'),
+  respostaDuplicada: () =>
+    new AppError('O mesmo desafio foi respondido mais de uma vez.', 400, 'RESPOSTA_DUPLICADA'),
   conteudoEmUso: () =>
     new AppError(
       'Este item está sendo usado por outros dados e não pode ser apagado.',

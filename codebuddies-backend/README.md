@@ -12,8 +12,8 @@ Responsável: **Gustavo De Assis Vieira Dos Santos** — FEMA/IMESA, Análise e 
 | 3. Autenticação e autorização                    | ✅ concluída |
 | 4. Operações CRUD                                | ✅ concluída |
 | 5. Integração com o banco Oracle (com Leonardo)  | ✅ concluída |
-| 6. Gerenciamento de fases e desafios             | ⏳ próxima   |
-| 7. Registro de respostas, tentativas e progresso | ⬜           |
+| 6. Gerenciamento de fases e desafios             | ✅ concluída |
+| 7. Registro de respostas, tentativas e progresso | ✅ concluída |
 | 8. Pontuação, estrelas e recompensas             | ⬜           |
 | 9. Dados para o front-end                        | ⬜           |
 | 10. Tratamento de erros e validação              | ⬜           |
@@ -131,7 +131,9 @@ modules/<nome>/
 
 - **Progresso guardado por turma (Opção B).** Cada aula é uma sessão de uma turma. O aluno é reconhecido por _nome + idade_ dentro da turma (ignorando acentos, maiúsculas e espaços) e continua de onde parou na aula seguinte. As tentativas ficam ligadas à sessão, para o relatório de cada aula.
 - **Ranking da aula**: 1º nível alcançado → 2º estrelas ganhas **nesta aula** → 3º menor tempo. Empate total divide a posição. Gerado e congelado no encerramento. Alterável em `src/domain/regras/ranking.ts`.
-- **Pontos:** 100 por resposta certa (igual ao `DEFAULT` de `DESAFIO.PONTOS`). Na Etapa 7 passam a vir dos desafios.
+-- **Correção no back-end (Etapa 7):** o front envia a resposta de cada desafio e o back compara com a resposta correta ignorando maiúsculas, acentos e espaços extras ("a" = "A", "ó" = "O"). Desafio pulado ou em branco conta como erro. A resposta correta nunca é enviada ao aluno — nem antes, nem depois de responder.
+- **Pontos:** soma dos pontos dos desafios acertados (cada desafio vale 100 por padrão; o professor pode mudar).
+- **Gravação:** a tentativa (`TENTATIVA_FASE`) e uma linha por desafio (`RESPOSTA_DESAFIO`) são gravadas na mesma transação — ou tudo, ou nada.
 - **Idade permitida:** 4 a 15 anos (igual ao `CHECK` do banco). Status inicial da aula: `CRIADA`. Sem personagem/mascote.
 - **Aniversário entre aulas:** se a criança digitar a nova idade, ela vira outro aluno. Solução (Etapa 4): o professor corrige a idade em `PATCH /api/alunos/:id` e ela volta a ser reconhecida.
 
@@ -231,6 +233,7 @@ Nada é apagado: turmas, alunos e professores são **desativados**, para manter 
 | ------ | ---- | --------- |
 | GET    | `/api/jogo/mapa`             | Mapa de fases (BLOQUEADA / LIBERADA / CONCLUIDA) e estrelas |
 | GET    | `/api/jogo/fases/:id`        | Desafios da fase **sem a resposta correta** (exige aula aberta e fase liberada) |
+| POST   | `/api/jogo/fases/:id/respostas` | Envia `{ tempoSegundos, respostas: [{ desafioId, resposta }] }`; o back corrige e devolve estrelas, pontos e ✓/✗ de cada desafio |
 
 ## Formato padrão de erro
 

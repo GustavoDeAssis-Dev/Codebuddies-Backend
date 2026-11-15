@@ -13,6 +13,7 @@ import type {
   Turma,
   Desafio,
   Nivel,
+  RespostaDesafio,
 } from '../domain/entidades.js';
 
 /**
@@ -93,6 +94,13 @@ export interface TentativaRepository {
   existeNaFase(faseId: number): Promise<boolean>;
 }
 
+/** Respostas corrigidas de cada desafio → tabela RESPOSTA_DESAFIO (Etapa 7). */
+export interface RespostaRepository {
+  /** Grava uma linha por desafio da tentativa. */
+  registrar(tentativaId: number, itens: Omit<RespostaDesafio, 'id' | 'tentativaId'>[]): Promise<void>;
+  listarPorTentativa(tentativaId: number): Promise<RespostaDesafio[]>;
+}
+
 export interface ProgressoRepository {
   listarPorAluno(alunoId: number): Promise<Progresso[]>;
   buscar(alunoId: number, faseId: number): Promise<Progresso | null>;
@@ -119,6 +127,7 @@ export interface Repositorios {
   participacoes: ParticipacaoRepository;
   conteudo: ConteudoRepository;
   tentativas: TentativaRepository;
+  respostas: RespostaRepository;
   progressos: ProgressoRepository;
   rankings: RankingRepository;
     /**

@@ -2,8 +2,6 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.js';
 import { AuthService } from '../src/modules/auth/auth.service.js';
-import { ConteudoService } from '../src/modules/conteudo/conteudo.service.js';
-import { JogoService } from '../src/modules/jogo/jogo.service.js';
 import { TentativasService } from '../src/modules/tentativas/tentativas.service.js';
 import { criarRepositoriosEmMemoria } from '../src/repositories/memoria/index.js';
 import type { Contexto } from '../src/shared/contexto.js';
@@ -133,7 +131,15 @@ describe('Fases (professor)', () => {
 
   it('não apaga fase que já foi jogada', async () => {
     const { alunoId } = await alunoNaAula();
-    await new TentativasService(ctx).registrar(alunoId, { faseId: 1, acertos: 3, erros: 0, tempoSegundos: 20 });
+    await new TentativasService(ctx).registrar(alunoId, {
+      faseId: 1,
+      tempoSegundos: 20,
+      respostas: [
+        { desafioId: 1, resposta: '3' },
+        { desafioId: 2, resposta: 'AZUL' },
+        { desafioId: 3, resposta: '2' },
+      ],
+    });
     expect((await prof().delete('/api/fases/1')).body.error.code).toBe('FASE_JA_JOGADA');
     const primeiro = (await prof().get('/api/fases/1')).body.desafios[0];
     expect((await prof().delete(`/api/desafios/${primeiro.id}`)).body.error.code).toBe('FASE_JA_JOGADA');
@@ -170,7 +176,37 @@ describe('Desafios (professor)', () => {
 describe('Jogo (aluno)', () => {
   it('aluno não acessa o cadastro de conteúdo', async () => {
     const { token } = await alunoNaAula();
-    expect((await comToken(token).get('/api/fases')).status).toBe(403);
+    expect((await comToken(token).get('/api/fases')).status).toBe(403);  
+  });
+
+   it('POST /api/jogo/fases/:id/respostas corrige e devolve as estrelas (sem revelar respostas)', async () => {
+    const { token } = await alunoNaAula();
+    const res = await comToken(token).post('/api/jogo/fases/1/respostas', {
+      tempoSegundos: 30,
+      respostas: [
+        { desafioId: 1, resposta: '3' },
+        { desafioId: 2, resposta: 'azul' },
+        { desafioId: 3, resposta: '5' },
+      ],
+    });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({
+      acertos: 2,
+      erros: 1,
+      percentual: 66,
+      estrelas: 3,
+      pontos: 200,
+      aprovada: true,
+      proximaFaseId: 2,
+    });
+    expect(JSON.stringify(res.body)).not.toContain('respostaCorreta');
+  });
+
+  it('POST de respostas sem a lista → 400 DADOS_INVALIDOS', async () => {
+    const { token } = await alunoNaAula();
+    const res = await comToken(token).post('/api/jogo/fases/1/respostas', { tempoSegundos: 30 });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('DADOS_INVALIDOS');
   });
 
   it('GET /api/jogo/mapa mostra só a primeira fase liberada', async () => {

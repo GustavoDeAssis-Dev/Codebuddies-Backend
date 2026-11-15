@@ -9,6 +9,7 @@ import { limparNome, normalizarNome } from '../src/domain/regras/identificacao.j
 import { montarMapaDeFases, consolidarProgresso } from '../src/domain/regras/progressao.js';
 import { montarRanking } from '../src/domain/regras/ranking.js';
 import { conteudoInicial } from '../src/repositories/memoria/conteudo-inicial.js';
+import { corrigirFase, estaCorreta, normalizarResposta } from '../src/domain/regras/correcao.js';
 
 describe('Estrelas por porcentagem de acertos (RF-P10 / RN05)', () => {
   it.each([
@@ -165,5 +166,54 @@ describe('Consolidação do progresso (igual à trigger TRG_ATUALIZA_PROGRESSO_O
   it('fase concluída não volta a ficar não concluída', () => {
     const p1 = consolidarProgresso(null, t(4, 400));
     expect(consolidarProgresso(p1, t(1, 100)).concluida).toBe(true);
+  });
+});
+describe('Correção das respostas (Etapa 7)', () => {
+  const desafio = (id: number, respostaCorreta: string, pontos = 100) => ({
+    id,
+    faseId: 1,
+    ordem: id,
+    enunciado: '?',
+    respostaCorreta,
+    pontos,
+  });
+
+  it('ignora maiúsculas, acentos e espaços extras', () => {
+    expect(normalizarResposta('  Guarda   chuvá ')).toBe('GUARDA CHUVA');
+    expect(estaCorreta('a', 'A')).toBe(true);
+    expect(estaCorreta(' ó ', 'O')).toBe(true);
+    expect(estaCorreta('E', 'A')).toBe(false);
+  });
+
+  it('resposta vazia ou pulada é errada', () => {
+    expect(estaCorreta('', 'A')).toBe(false);
+    expect(estaCorreta('   ', 'A')).toBe(false);
+    expect(estaCorreta(null, 'A')).toBe(false);
+  });
+
+  it('pontos = soma dos pontos dos desafios acertados; pulado conta como erro', () => {
+    const c = corrigirFase(
+      [desafio(1, 'A'), desafio(2, 'O', 150), desafio(3, 'U')],
+      [
+        { desafioId: 1, resposta: 'a' },
+        { desafioId: 2, resposta: 'o' },
+      ],
+    );
+    expect(c).toMatchObject({ acertos: 2, erros: 1, pontos: 250, pontosPossiveis: 350 });
+    expect(c.itens[2]).toEqual({ desafioId: 3, respostaSubmetida: null, acertou: false, pontos: 0 });
+  });
+
+  it('os itens seguem a ordem dos desafios da fase', () => {
+    const c = corrigirFase(
+      [desafio(1, 'A'), desafio(2, 'B')],
+      [
+        { desafioId: 2, resposta: 'B' },
+        { desafioId: 1, resposta: 'X' },
+      ],
+    );
+    expect(c.itens.map((i) => [i.desafioId, i.acertou])).toEqual([
+      [1, false],
+      [2, true],
+    ]);
   });
 });

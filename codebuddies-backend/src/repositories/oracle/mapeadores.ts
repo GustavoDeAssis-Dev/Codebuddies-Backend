@@ -7,6 +7,7 @@ import type {
   Progresso,
   Sessao,
   Tentativa,
+  RespostaDesafio
 } from '../../domain/entidades.js';
 import type {
   AlunoEntity,
@@ -16,6 +17,7 @@ import type {
   ProgressoFaseEntity,
   SessaoAulaEntity,
   TentativaFaseEntity,
+  RespostaDesafioEntity,
 } from '../../database/entidades.js';
 
 /**
@@ -98,5 +100,14 @@ export function paraProgresso(p: ProgressoFaseEntity): Progresso {
     pontuacaoMaxima: p.pontuacaoMaxima,
     concluida: p.concluida,
     atualizadoEm: p.atualizadoEm,
+  };
+}
+export function paraResposta(r: RespostaDesafioEntity): RespostaDesafio {
+  return {
+    id: r.id,
+    tentativaId: r.tentativaId,
+    desafioId: r.desafioId,
+    respostaSubmetida: r.respostaSubmetida,
+    acertou: r.acertou,
   };
 }

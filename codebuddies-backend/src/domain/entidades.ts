@@ -131,3 +131,11 @@ export interface RankingFinal {
   geradoEm: Date;
   itens: ItemRanking[];
 }
+/** Resposta da criança a um desafio, já corrigida pelo back-end → tabela RESPOSTA_DESAFIO. */
+export interface RespostaDesafio {
+  id: number;
+  tentativaId: number;
+  desafioId: number;
+  respostaSubmetida: string | null; // null = a criança pulou o desafio
+  acertou: boolean;
+}

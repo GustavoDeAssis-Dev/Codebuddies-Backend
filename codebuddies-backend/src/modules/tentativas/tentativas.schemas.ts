@@ -1,16 +1,23 @@
 import { z } from 'zod';
 
 /**
- * O front envia o que a criança FEZ (acertos, erros, tempo) — nunca as estrelas.
- * erros = respostas erradas, inclusive as que a criança corrigiu depois.
+ * Etapa 7 — o front manda AS RESPOSTAS de cada desafio (não mais "acertos" e "erros").
+ * Quem decide o que está certo é o back-end.
  */
-export const registrarTentativaSchema = z
-  .object({
-    faseId: z.coerce.number().int().positive(),
-    acertos: z.coerce.number().int().min(0).max(1000),
-    erros: z.coerce.number().int().min(0).max(1000),
-    tempoSegundos: z.coerce.number().int().min(0).max(3600),
-  })
-  .refine((d) => d.acertos + d.erros > 0, { message: 'É preciso ao menos uma resposta', path: ['acertos'] });
+export const registrarTentativaSchema = z.object({
+  faseId: z.int('Fase inválida').positive('Fase inválida'),
+  tempoSegundos: z.int('Tempo inválido').min(0, 'Tempo inválido').max(3600, 'Tempo máximo: 1 hora'),
+  respostas: z
+    .array(
+      z.object({
+        desafioId: z.int('Desafio inválido').positive('Desafio inválido'),
+        // Limite igual à coluna RESPOSTA_DESAFIO.RESPOSTA_SUBMETIDA (VARCHAR2(100))
+        resposta: z.string({ error: 'A resposta deve ser um texto' }).trim().max(100, 'Resposta muito grande'),
+      }),
+      { error: 'Envie a lista de respostas' },
+    )
+    .min(1, 'Responda pelo menos um desafio')
+    .max(99, 'Respostas demais'),
+});
 
 export type RegistrarTentativaInput = z.input<typeof registrarTentativaSchema>;

@@ -4,13 +4,34 @@ import { ProgressoService } from '../src/modules/progresso/progresso.service.js'
 import { RankingService } from '../src/modules/ranking/ranking.service.js';
 import { SessoesService } from '../src/modules/sessoes/sessoes.service.js';
 import { TentativasService } from '../src/modules/tentativas/tentativas.service.js';
+import { conteudoInicial } from '../src/repositories/memoria/conteudo-inicial.js';
 import { criarRepositoriosEmMemoria } from '../src/repositories/memoria/index.js';
 import type { Contexto } from '../src/shared/contexto.js';
+
+/**
+ * Conteúdo de teste: as 6 fases de exemplo, cada uma com 10 desafios
+ * (resposta "OK", 100 pontos). Com 10 desafios dá para testar qualquer porcentagem: 8 certas = 80%.
+ * O id do desafio é faseId * 100 + posição → fase 1: 101 a 110; fase 2: 201 a 210...
+ */
+function conteudoCom10Desafios() {
+  const base = conteudoInicial();
+  const desafios = base.fases.flatMap((f) =>
+    Array.from({ length: 10 }, (_, i) => ({
+      id: f.id * 100 + i + 1,
+      faseId: f.id,
+      ordem: i + 1,
+      enunciado: `Desafio ${i + 1}`,
+      respostaCorreta: 'OK',
+      pontos: 100,
+    })),
+  );
+  return { ...base, desafios };
+}
 
 /** Monta um "sistema" novo, com banco em memória, para cada teste. */
 function montar() {
   const ctx: Contexto = {
-    repos: criarRepositoriosEmMemoria(),
+    repos: criarRepositoriosEmMemoria(conteudoCom10Desafios()),
     agora: () => new Date('2026-10-14T13:00:00Z'),
   };
   return {
@@ -32,9 +53,16 @@ async function abrirAula(s: Sistema, turmaId?: number) {
   return { turmaId: id, sessaoId: sessao.id };
 }
 
-/** Joga uma fase com uma quantidade de acertos em 10 respostas. */
+/** Joga uma fase respondendo os 10 desafios: as primeiras `acertos` certas, o resto errado. */
 const jogar = (s: Sistema, alunoId: number, faseId: number, acertos: number, tempo = 30) =>
-  s.tentativas.registrar(alunoId, { faseId, acertos, erros: 10 - acertos, tempoSegundos: tempo });
+  s.tentativas.registrar(alunoId, {
+    faseId,
+    tempoSegundos: tempo,
+    respostas: Array.from({ length: 10 }, (_, i) => ({
+      desafioId: faseId * 100 + i + 1,
+      resposta: i < acertos ? 'ok' : 'errei',
+    })),
+  });
 
 describe('Fluxo da aula — critérios de aceitação', () => {
   let s: Sistema;
@@ -119,7 +147,7 @@ describe('Fluxo da aula — critérios de aceitação', () => {
     expect(pior.melhorEstrelas).toBe(5);
 
     const mapa = await s.progresso.mapaDoAluno(aluno.id);
-    expect(mapa.fases[0]).toMatchObject({ status: 'CONCLUIDA', melhorEstrelas: 5});
+    expect(mapa.fases[0]).toMatchObject({ status: 'CONCLUIDA', melhorEstrelas: 5 });
     expect(mapa.estrelasTotais).toBe(5);
   });
 
@@ -213,5 +241,52 @@ describe('Fluxo da aula — critérios de aceitação', () => {
     await s.sessoes.encerrar(aula1.sessaoId);
     await abrirAula(s, aula1.turmaId);
     await expect(jogar(s, aluno.id, 1, 10)).rejects.toMatchObject({ code: 'ALUNO_FORA_DA_SESSAO' });
+  });
+
+  it('Etapa 7 — o back corrige as respostas e grava uma por desafio', async () => {
+    await abrirAula(s);
+    const { aluno } = await s.alunos.entrar({ nome: 'Ana', idade: 6 });
+
+    const r = await s.tentativas.registrar(aluno.id, {
+      faseId: 1,
+      tempoSegundos: 20,
+      respostas: [
+        { desafioId: 101, resposta: ' ok ' }, // certa (espaços ignorados)
+        { desafioId: 102, resposta: 'Ok' }, // certa (maiúscula ignorada)
+        { desafioId: 103, resposta: 'não sei' }, // errada
+      ], // os outros 7 desafios foram pulados → contam como erro
+    });
+
+    expect(r).toMatchObject({
+      acertos: 2,
+      erros: 8,
+      percentual: 20,
+      estrelas: 1,
+      pontos: 200,
+      pontosPossiveis: 1000,
+    });
+    expect(r.desafios[2]).toEqual({ desafioId: 103, ordem: 3, acertou: false, pontos: 0 });
+
+    const gravadas = await s.ctx.repos.respostas.listarPorTentativa(r.tentativa.id);
+    expect(gravadas).toHaveLength(10); // uma linha por desafio da fase
+    expect(gravadas.filter((g) => g.respostaSubmetida === null)).toHaveLength(7); // puladas
+  });
+
+  it('Etapa 7 — resposta de outra fase ou repetida é recusada (e nada é gravado)', async () => {
+    const { sessaoId } = await abrirAula(s);
+    const { aluno } = await s.alunos.entrar({ nome: 'Ana', idade: 6 });
+    const enviar = (respostas: { desafioId: number; resposta: string }[]) =>
+      s.tentativas.registrar(aluno.id, { faseId: 1, tempoSegundos: 5, respostas });
+
+    await expect(enviar([{ desafioId: 201, resposta: 'ok' }])).rejects.toMatchObject({
+      code: 'DESAFIO_FORA_DA_FASE',
+    });
+    await expect(
+      enviar([
+        { desafioId: 101, resposta: 'ok' },
+        { desafioId: 101, resposta: 'ok' },
+      ]),
+    ).rejects.toMatchObject({ code: 'RESPOSTA_DUPLICADA' });
+    expect(await s.ctx.repos.tentativas.listarPorSessao(sessaoId)).toHaveLength(0);
   });
 });
