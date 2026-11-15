@@ -8,6 +8,7 @@ import { turmasRoutes } from './modules/turmas/turmas.routes.js';
 import type { Contexto } from './shared/contexto.js';
 import { desafiosRoutes, fasesRoutes, niveisRoutes } from './modules/conteudo/conteudo.routes.js';
 import { jogoRoutes } from './modules/jogo/jogo.routes.js';
+import { relatoriosRoutes } from './modules/relatorios/relatorios.routes.js';
 
 /**
  * Ponto único onde todos os módulos registram suas rotas.
@@ -30,5 +31,7 @@ export function criarRotas(ctx: Contexto) {
 
   routes.use('/jogo', jogoRoutes(ctx));
   
+  // Etapa 9 — relatórios do professor
+  routes.use('/relatorios', relatoriosRoutes(ctx));
   return routes;
 }

@@ -20,6 +20,7 @@ import { TentativasService } from '../src/modules/tentativas/tentativas.service.
 import { TurmasService } from '../src/modules/turmas/turmas.service.js';
 import { criarRepositoriosOracle } from '../src/repositories/oracle/index.js';
 import type { Contexto } from '../src/shared/contexto.js';
+import { RelatoriosService } from '../src/modules/relatorios/relatorios.service.js';
 
 class Desfazer extends Error {}
 
@@ -124,6 +125,20 @@ try {
       }
     }
 
+        // Etapa 9 — relatórios com agregação (QueryBuilder no Oracle)
+    const relatorios = new RelatoriosService(ctx);
+    const resumo = await relatorios.resumo(turma.id);
+    ok(
+      `relatório (COUNT/AVG/MAX/MIN/SUM): ${resumo.totalTentativas} tentativa(s), média ${resumo.mediaEstrelas ?? '—'} estrelas, ${resumo.pontosTotais} pontos`,
+    );
+    const porFase = await relatorios.desempenhoPorFase(turma.id);
+    ok(`por fase (GROUP BY): ${porFase.filter((f) => f.totalTentativas > 0).length} de ${porFase.length} fases jogadas`);
+    const boletim = await relatorios.boletim(turma.id);
+    ok(`boletim (pivot): ${boletim.linhas.length} aluno(s) × ${boletim.fases.length} fase(s)`);
+    const errados = await relatorios.desafiosMaisErrados(turma.id);
+    ok(
+      `desafios mais errados: ${errados.map((d) => `"${d.enunciado}" (${d.taxaErro}%)`).join(', ') || 'nenhum erro'}`,
+    );
     const { ranking } = await sessoes.encerrar(sessao.id);
     ok(`aula encerrada pela PRC_ENCERRAR_SESSAO; ranking com ${ranking.itens.length} aluno(s)`);
 

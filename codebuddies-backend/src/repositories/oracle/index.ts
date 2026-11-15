@@ -25,6 +25,7 @@ import {
   paraSessao,
   paraTentativa,
   paraResposta,
+  paraEstatisticas,
 } from './mapeadores.js';
 
 /**
@@ -49,6 +50,28 @@ export function criarRepositoriosOracle(manager: EntityManager): Repositorios {
 
   /** Busca a sessão de novo depois de uma procedure (para devolver os dados atualizados). */
   const recarregarSessao = async (id: number) => paraSessao(await sessoes.findOneByOrFail({ id }));
+
+    /**
+   * Etapa 9 — consulta base dos relatórios, no estilo LINQ:
+   *   FROM TENTATIVA_FASE t JOIN ALUNO a ... WHERE a.ID_TURMA = :turmaId
+   *   SELECT COUNT, AVG, MAX, MIN, SUM
+   * Os nomes `t.estrelas`, `a.turmaId` são das PROPRIEDADES das entidades: o TypeORM traduz
+   * para as colunas do Oracle (ESTRELAS_OBTIDAS, ID_TURMA...).
+   */
+  const consultaEstatisticas = (turmaId: number) =>
+    tentativas
+      .createQueryBuilder('t')
+      .innerJoin(AlunoEntity, 'a', 'a.id = t.alunoId')
+      .select('COUNT(*)', 'totalTentativas')
+      .addSelect('COUNT(DISTINCT t.alunoId)', 'alunosQueJogaram')
+      .addSelect('AVG(t.estrelas)', 'mediaEstrelas')
+      .addSelect('AVG(t.percentual)', 'mediaPercentual')
+      .addSelect('MAX(t.percentual)', 'maiorPercentual')
+      .addSelect('MIN(t.percentual)', 'menorPercentual')
+      .addSelect('SUM(t.pontos)', 'somaPontos')
+      .addSelect('AVG(t.tempoSegundos)', 'tempoMedioSegundos')
+      .addSelect("SUM(CASE WHEN t.aprovada = 'S' THEN 1 ELSE 0 END)", 'aprovacoes')
+      .where('a.turmaId = :turmaId', { turmaId });
 
   const repos: Repositorios = {
     // Os campos de ProfessorEntity têm os mesmos nomes do tipo Professor: não precisa de conversão.
@@ -283,6 +306,38 @@ export function criarRepositoriosOracle(manager: EntityManager): Repositorios {
       },
     }),
 
+        relatorios: comTraducaoDeErros({
+      async estatisticasDaTurma(turmaId) {
+        const linha = await consultaEstatisticas(turmaId).getRawOne();
+        return paraEstatisticas(linha ?? {});
+      },
+      async estatisticasPorFase(turmaId) {
+        // Mesma consulta + GROUP BY fase
+        const linhas = await consultaEstatisticas(turmaId)
+          .addSelect('t.faseId', 'faseId')
+          .groupBy('t.faseId')
+          .getRawMany();
+        return linhas.map((l) => ({ faseId: Number(l.faseId), ...paraEstatisticas(l) }));
+      },
+      async errosPorDesafio(turmaId) {
+        // RESPOSTA_DESAFIO r JOIN TENTATIVA_FASE t JOIN ALUNO a ... GROUP BY r.ID_DESAFIO
+        const linhas = await respostasDesafio
+          .createQueryBuilder('r')
+          .innerJoin(TentativaFaseEntity, 't', 't.id = r.tentativaId')
+          .innerJoin(AlunoEntity, 'a', 'a.id = t.alunoId')
+          .select('r.desafioId', 'desafioId')
+          .addSelect('COUNT(*)', 'respostas')
+          .addSelect("SUM(CASE WHEN r.acertou = 'N' THEN 1 ELSE 0 END)", 'erros')
+          .where('a.turmaId = :turmaId', { turmaId })
+          .groupBy('r.desafioId')
+          .getRawMany();
+        return linhas.map((l) => ({
+          desafioId: Number(l.desafioId),
+          respostas: Number(l.respostas),
+          erros: Number(l.erros),
+        }));
+      },
+    }),
     /**
      * TRANSAÇÃO (unit of work): tudo o que `trabalho` fizer usa o mesmo manager.
      * Se der erro no meio, o Oracle desfaz tudo (ROLLBACK); se der certo, grava tudo (COMMIT).

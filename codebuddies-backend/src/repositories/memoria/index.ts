@@ -13,7 +13,7 @@ import type {
   RespostaDesafio,
 } from '../../domain/entidades.js';
 import { consolidarProgresso } from '../../domain/regras/progressao.js';
-import type { Repositorios } from '../contratos.js';
+import type { Repositorios, EstatisticasTentativas } from '../contratos.js';
 import { conteudoInicial, type ConteudoInicial } from './conteudo-inicial.js';
 
 /**
@@ -46,6 +46,27 @@ export function criarRepositoriosEmMemoria(conteudo: ConteudoInicial = conteudoI
   const proximoId = (tabela: Map<number, unknown>) => Math.max(0, ...tabela.keys()) + 1;
   const professores = new Map<number, Professor>();
 
+    // ───── Apoio aos relatórios (Etapa 9): as mesmas contas que o Oracle faz com SUM/AVG/COUNT/MAX/MIN ─────
+  const tentativasDaTurma = (turmaId: number) =>
+    tentativas.filter((t) => alunos.get(t.alunoId)?.turmaId === turmaId);
+  const soma = (valores: number[]) => valores.reduce((total, v) => total + v, 0);
+  const media = (valores: number[]) => (valores.length > 0 ? soma(valores) / valores.length : null);
+
+  function estatisticas(lista: Tentativa[]): EstatisticasTentativas {
+    const vazia = lista.length === 0; // igual ao SQL: sem linhas, AVG/MAX/MIN/SUM dão NULL
+    const percentuais = lista.map((t) => t.percentual);
+    return {
+      totalTentativas: lista.length,
+      alunosQueJogaram: new Set(lista.map((t) => t.alunoId)).size,
+      mediaEstrelas: media(lista.map((t) => t.estrelas)),
+      mediaPercentual: media(percentuais),
+      maiorPercentual: vazia ? null : Math.max(...percentuais),
+      menorPercentual: vazia ? null : Math.min(...percentuais),
+      somaPontos: vazia ? null : soma(lista.map((t) => t.pontos)),
+      tempoMedioSegundos: media(lista.map((t) => t.tempoSegundos)),
+      aprovacoes: vazia ? null : lista.filter((t) => t.aprovada).length,
+    };
+  }
   const repos: Repositorios = {
         professores: {
       async buscarPorId(id) {
@@ -304,6 +325,31 @@ export function criarRepositoriosEmMemoria(conteudo: ConteudoInicial = conteudoI
     // (No Oracle, um erro no meio desfaz tudo — ver repositories/oracle.)
     async transacao(trabalho) {
       return trabalho(repos);
+    },
+        relatorios: {
+      async estatisticasDaTurma(turmaId) {
+        return estatisticas(tentativasDaTurma(turmaId));
+      },
+      async estatisticasPorFase(turmaId) {
+        // GROUP BY fase: Map<faseId, tentativas daquela fase>
+        const porFase = new Map<number, Tentativa[]>();
+        for (const t of tentativasDaTurma(turmaId)) {
+          porFase.set(t.faseId, [...(porFase.get(t.faseId) ?? []), t]);
+        }
+        return [...porFase].map(([faseId, lista]) => ({ faseId, ...estatisticas(lista) }));
+      },
+      async errosPorDesafio(turmaId) {
+        const daTurma = new Set(tentativasDaTurma(turmaId).map((t) => t.id));
+        const porDesafio = new Map<number, { respostas: number; erros: number }>();
+        for (const r of respostasDesafio.filter((r) => daTurma.has(r.tentativaId))) {
+          const atual = porDesafio.get(r.desafioId) ?? { respostas: 0, erros: 0 };
+          porDesafio.set(r.desafioId, {
+            respostas: atual.respostas + 1,
+            erros: atual.erros + (r.acertou ? 0 : 1),
+          });
+        }
+        return [...porDesafio].map(([desafioId, contagem]) => ({ desafioId, ...contagem }));
+      },
     },
   };
 

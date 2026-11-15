@@ -19,6 +19,7 @@ import type {
   TentativaFaseEntity,
   RespostaDesafioEntity,
 } from '../../database/entidades.js';
+import type { EstatisticasTentativas } from '../contratos.js';
 
 /**
  * MAPEADORES: convertem as entidades do TypeORM (linhas do Oracle) nos tipos do domínio.
@@ -109,5 +110,22 @@ export function paraResposta(r: RespostaDesafioEntity): RespostaDesafio {
     desafioId: r.desafioId,
     respostaSubmetida: r.respostaSubmetida,
     acertou: r.acertou,
+  };
+}
+/** Valor de agregação do Oracle: AVG/MAX/MIN/SUM vêm NULL quando não há linhas. */
+const numeroOuNulo = (valor: unknown) => (valor === null || valor === undefined ? null : Number(valor));
+
+/** Converte uma linha "crua" (getRawOne/getRawMany) com as agregações das tentativas. */
+export function paraEstatisticas(linha: Record<string, unknown>): EstatisticasTentativas {
+  return {
+    totalTentativas: Number(linha.totalTentativas ?? 0),
+    alunosQueJogaram: Number(linha.alunosQueJogaram ?? 0),
+    mediaEstrelas: numeroOuNulo(linha.mediaEstrelas),
+    mediaPercentual: numeroOuNulo(linha.mediaPercentual),
+    maiorPercentual: numeroOuNulo(linha.maiorPercentual),
+    menorPercentual: numeroOuNulo(linha.menorPercentual),
+    somaPontos: numeroOuNulo(linha.somaPontos),
+    tempoMedioSegundos: numeroOuNulo(linha.tempoMedioSegundos),
+    aprovacoes: numeroOuNulo(linha.aprovacoes),
   };
 }

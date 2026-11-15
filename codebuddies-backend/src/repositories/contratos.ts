@@ -121,6 +121,39 @@ export interface ProfessorRepository {
   atualizar(professor: Professor): Promise<Professor>; // NOVO
 }
 
+/** Resultado das funções de agregação sobre um conjunto de tentativas (Etapa 9). */
+export interface EstatisticasTentativas {
+  totalTentativas: number; // COUNT
+  alunosQueJogaram: number; // COUNT DISTINCT
+  mediaEstrelas: number | null; // AVG  (null = ninguém jogou)
+  mediaPercentual: number | null; // AVG
+  maiorPercentual: number | null; // MAX
+  menorPercentual: number | null; // MIN
+  somaPontos: number | null; // SUM
+  tempoMedioSegundos: number | null; // AVG
+  aprovacoes: number | null; // SUM(CASE ...) — tentativas com 3+ estrelas
+}
+
+export interface EstatisticasPorFase extends EstatisticasTentativas {
+  faseId: number;
+}
+
+export interface ErrosPorDesafio {
+  desafioId: number;
+  respostas: number; // COUNT
+  erros: number; // SUM(CASE WHEN errou ...)
+}
+
+/** Consultas de relatório: sempre filtradas pela turma (Etapa 9). */
+export interface RelatorioRepository {
+  /** Agregações de todas as tentativas dos alunos da turma. */
+  estatisticasDaTurma(turmaId: number): Promise<EstatisticasTentativas>;
+  /** As mesmas agregações, agrupadas por fase (GROUP BY). Fase sem tentativas não aparece. */
+  estatisticasPorFase(turmaId: number): Promise<EstatisticasPorFase[]>;
+  /** Respostas e erros de cada desafio respondido pelos alunos da turma (GROUP BY). */
+  errosPorDesafio(turmaId: number): Promise<ErrosPorDesafio[]>;
+}
+
 export interface Repositorios {
   professores: ProfessorRepository;
   turmas: TurmaRepository;
@@ -132,6 +165,7 @@ export interface Repositorios {
   respostas: RespostaRepository;
   progressos: ProgressoRepository;
   rankings: RankingRepository;
+  relatorios: RelatorioRepository;
     /**
    * Executa várias operações numa TRANSAÇÃO: ou tudo é gravado, ou nada é.
    * Ex.: encerrar a aula + salvar o ranking. Se o ranking falhar, a aula continua aberta.
