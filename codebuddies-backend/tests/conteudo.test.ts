@@ -304,4 +304,15 @@ describe('Jogo (aluno)', () => {
     expect(res.body.conquistas).toHaveLength(6);
     expect((await prof().get('/api/alunos/999/conquistas')).status).toBe(404);
   });
+
+    it('professor vê o mapa de fases de um aluno (GET /api/alunos/:id/mapa)', async () => {
+    const { alunoId, token } = await alunoNaAula();
+    const res = await prof().get(`/api/alunos/${alunoId}/mapa`);
+    expect(res.status).toBe(200);
+    expect(res.body.fases).toHaveLength(6);
+    expect(res.body.fases[0].status).toBe('LIBERADA');
+
+    expect((await prof().get('/api/alunos/999/mapa')).status).toBe(404);
+    expect((await comToken(token).get(`/api/alunos/${alunoId}/mapa`)).status).toBe(403); // aluno não
+  });
 });

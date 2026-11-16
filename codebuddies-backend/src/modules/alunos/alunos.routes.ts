@@ -4,12 +4,14 @@ import { lerId } from '../../shared/http/params.js';
 import { autenticar, exigirPerfil } from '../../shared/middlewares/autenticar.js';
 import { AlunosService } from './alunos.service.js';
 import { RecompensasService } from '../recompensas/recompensas.service.js';
+import { ProgressoService } from '../progresso/progresso.service.js';
 
 /** Gestão de alunos pelo professor (o aluno entra por /api/auth/aluno/entrar). */
 export function alunosRoutes(ctx: Contexto) {
   const router = Router();
   const service = new AlunosService(ctx);
   const recompensas = new RecompensasService(ctx);
+  const progresso = new ProgressoService(ctx);
 
   router.use(autenticar, exigirPerfil('PROFESSOR'));
 
@@ -20,6 +22,11 @@ export function alunosRoutes(ctx: Contexto) {
   // GET /api/alunos/:id/conquistas — o professor vê as recompensas de um aluno
   router.get('/:id/conquistas', async (req, res) => {
     res.json(await recompensas.painel(lerId(req)));
+  });
+
+  // GET /api/alunos/:id/mapa — o professor vê o mapa de fases de um aluno (tela "Progressos")
+  router.get('/:id/mapa', async (req, res) => {
+    res.json(await progresso.mapaDoAluno(lerId(req)));
   });
 
   // Corrigir nome / idade / personagem
