@@ -70,4 +70,17 @@ export const Erros = {
 
   // Ranking
   rankingIndisponivel: () => new AppError('O ranking aparece quando o professor encerrar a aula.', 403, 'RANKING_INDISPONIVEL'), // RN08 / CA08
+  
+  // Infraestrutura (Etapa 10)
+  jsonInvalido: () => new AppError('JSON malformado.', 400, 'JSON_INVALIDO'),
+  conteudoMuitoGrande: () =>
+    new AppError('Os dados enviados são grandes demais.', 413, 'CONTEUDO_MUITO_GRANDE'),
+  bancoIndisponivel: () =>
+    new AppError(
+      'O sistema está com problema de conexão. Tente de novo em instantes.',
+      503,
+      'BANCO_INDISPONIVEL',
+    ),
+  muitasRequisicoes: () =>
+  new AppError('Muitas ações seguidas. Espere um pouquinho e tente de novo.', 429, 'MUITAS_REQUISICOES'),
 } as const;

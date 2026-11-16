@@ -14,7 +14,7 @@ import {
   RespostaDesafioEntity,
 } from '../../database/entidades.js';
 import type { Repositorios } from '../contratos.js';
-import { comTraducaoDeErros, ehValorDuplicado } from './erros-oracle.js';
+import { comTraducaoDeErros, ehValorDuplicado, traduzirErroOracle } from './erros-oracle.js';
 import {
   paraAluno,
   paraDesafio,
@@ -342,11 +342,15 @@ export function criarRepositoriosOracle(manager: EntityManager): Repositorios {
      * TRANSAÇÃO (unit of work): tudo o que `trabalho` fizer usa o mesmo manager.
      * Se der erro no meio, o Oracle desfaz tudo (ROLLBACK); se der certo, grava tudo (COMMIT).
      */
-    async transacao(trabalho) {
+        async transacao(trabalho) {
       if (manager.queryRunner?.isTransactionActive) return trabalho(repos); // já dentro de uma
-      return manager.transaction((managerDaTransacao) =>
-        trabalho(criarRepositoriosOracle(managerDaTransacao)),
-      );
+      try {
+        return await manager.transaction((managerDaTransacao) =>
+          trabalho(criarRepositoriosOracle(managerDaTransacao)),
+        );
+      } catch (erro) {
+        throw traduzirErroOracle(erro); // ex.: conexão caiu ao começar → 503
+      }
     },
   };
 

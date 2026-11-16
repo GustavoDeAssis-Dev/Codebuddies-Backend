@@ -30,8 +30,18 @@ describe('Tradução de erros do Oracle', () => {
     expect(traduzirErroOracle(erroOracle(2292))).toMatchObject({ code: 'CONTEUDO_EM_USO' });
   });
   
+    it('Etapa 10: conexão perdida → 503 BANCO_INDISPONIVEL', () => {
+    expect(traduzirErroOracle(erroOracle(12541, 'ORA-12541: TNS:no listener'))).toMatchObject({
+      code: 'BANCO_INDISPONIVEL',
+      statusCode: 503,
+    });
+    expect(traduzirErroOracle({ code: 'NJS-500', message: 'connection was broken' })).toMatchObject({
+      code: 'BANCO_INDISPONIVEL',
+    });
+  });
+  
   it('erro desconhecido passa adiante sem mudar', () => {
-    const outro = erroOracle(12541, 'ORA-12541: TNS:no listener');
+    const outro = erroOracle(942, 'ORA-00942: table or view does not exist');
     expect(traduzirErroOracle(outro)).toBe(outro);
     const comum = new Error('qualquer');
     expect(traduzirErroOracle(comum)).toBe(comum);

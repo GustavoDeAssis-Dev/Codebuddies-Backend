@@ -30,6 +30,22 @@ const UNICOS: Record<string, () => AppError> = {
   UQ_FASE_NIVEL_ORDEM: Erros.ordemFaseDuplicada,
 };
 
+/**
+ * Etapa 10 — erros que significam "perdi a conexão com o banco" (rede caiu, servidor desligado...).
+ * ORA-03113/03114/03135: conexão caiu · ORA-12170: tempo esgotado · ORA-125xx: servidor/listener fora
+ * NJS-5xx (driver thin) e DPI-1010/1080: conexão fechada ou impossível · ECONN*: falha de rede do Node
+ */
+const ORA_CONEXAO_PERDIDA = new Set([3113, 3114, 3135, 12170, 12514, 12528, 12537, 12541, 12543]);
+const CODIGO_CONEXAO_PERDIDA = /^(NJS-5\d\d|DPI-1010|DPI-1080|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EHOSTUNREACH)$/;
+
+export function ehConexaoPerdida(erro: unknown): boolean {
+  if (typeof erro !== 'object' || erro === null) return false;
+  const e = erro as { driverError?: { code?: unknown; errorNum?: unknown }; code?: unknown; errorNum?: unknown };
+  const origem = e.driverError ?? e; // o TypeORM embrulha o erro do driver em driverError
+  if (typeof origem.errorNum === 'number' && ORA_CONEXAO_PERDIDA.has(origem.errorNum)) return true;
+  return typeof origem.code === 'string' && CODIGO_CONEXAO_PERDIDA.test(origem.code);
+}
+
 interface ErroDoOracle {
   errorNum?: number;
   message?: string;
@@ -46,6 +62,7 @@ function erroDoDriver(erro: unknown): ErroDoOracle | null {
 
 /** Devolve o erro de negócio correspondente, ou o próprio erro original se não for um caso conhecido. */
 export function traduzirErroOracle(erro: unknown): unknown {
+  if (ehConexaoPerdida(erro)) return Erros.bancoIndisponivel();
   const ora = erroDoDriver(erro);
   if (!ora?.errorNum) return erro;
 

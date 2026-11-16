@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import './zod.js'; // Etapa 10: mensagens do Zod em português (precisa vir primeiro)
 
 /**
  * Lê e valida as variáveis de ambiente uma única vez, na subida da aplicação.
@@ -19,7 +20,7 @@ const envSchema = z.object({
   PROFESSOR_INICIAL_NOME: z.string().optional(),
   PROFESSOR_INICIAL_EMAIL: z.email().optional(),
   PROFESSOR_INICIAL_SENHA: z.string().min(8).optional(),
-    // Banco de dados (Etapa 5)
+  // Banco de dados (Etapa 5)
   // memoria = dados somem ao reiniciar (testes e desenvolvimento sem banco)
   // oracle  = usa o banco Oracle configurado abaixo
   BANCO: z.enum(['memoria', 'oracle']).default('memoria'),
@@ -27,6 +28,8 @@ const envSchema = z.object({
   DB_PASSWORD: z.string().optional(),
   DB_CONNECT_STRING: z.string().optional(), // ex.: servidor:1521/ORCL
   DB_LOGGING: z.stringbool().default(false), // true = mostra no terminal cada SQL executado
+  // Etapa 10: máximo de requisições por minuto de cada computador (proteção contra excesso)
+  RATE_LIMIT_POR_MINUTO: z.coerce.number().int().positive().default(300),
 });
 
 const parsed = envSchema.safeParse(process.env);
