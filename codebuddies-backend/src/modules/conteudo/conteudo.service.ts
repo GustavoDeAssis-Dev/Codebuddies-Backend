@@ -21,6 +21,11 @@ export interface NivelComFases extends Nivel {
   fases: Fase[];
 }
 
+/** Fase na lista do professor: com quantos desafios tem (0 = "em construção", o aluno não vê). */
+export interface FaseNaLista extends FaseComNivel {
+  totalDesafios: number;
+}
+
 export interface FaseDetalhada extends FaseComNivel {
   desafios: Desafio[]; // para o PROFESSOR: inclui a resposta correta
 }
@@ -101,8 +106,12 @@ export class ConteudoService {
   // ═════════════════════════════ FASES ═════════════════════════════
 
   /** Todas as fases na ordem do jogo (nível 1 fase 1, nível 1 fase 2, ...). */
-  async listarFases(): Promise<FaseComNivel[]> {
-    return ordenarFases(await this.conteudo.listarFases());
+  async listarFases(): Promise<FaseNaLista[]> {
+    const [fases, totais] = await Promise.all([
+      this.conteudo.listarFases(),
+      this.conteudo.contarDesafiosPorFase(),
+    ]);
+    return ordenarFases(fases).map((f) => ({ ...f, totalDesafios: totais.get(f.id) ?? 0 }));
   }
 
   async buscarFase(id: number): Promise<FaseDetalhada> {

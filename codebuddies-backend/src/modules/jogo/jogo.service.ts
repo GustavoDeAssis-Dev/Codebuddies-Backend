@@ -54,14 +54,15 @@ export class JogoService {
     const fase = await conteudo.buscarFase(faseId);
     if (!fase) throw Erros.faseNaoEncontrada();
 
-    const mapa = await this.progresso.mapaDoAluno(alunoId);
-    if (!podeJogar(mapa, faseId)) throw Erros.faseBloqueada();
-
+    // Fase sem desafios fica fora do mapa do aluno: avisa antes de checar o bloqueio
     const [nivel, desafios] = await Promise.all([
       conteudo.buscarNivel(fase.nivelId),
       conteudo.listarDesafios(faseId),
     ]);
     if (desafios.length === 0) throw Erros.faseSemDesafios();
+
+    const mapa = await this.progresso.mapaDoAluno(alunoId);
+    if (!podeJogar(mapa, faseId)) throw Erros.faseBloqueada();
 
     return {
       fase: { id: fase.id, titulo: fase.titulo, tipo: fase.tipo, ordem: fase.ordem, nivel: nivel! },

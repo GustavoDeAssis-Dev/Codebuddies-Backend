@@ -221,6 +221,16 @@ export function criarRepositoriosOracle(manager: EntityManager): Repositorios {
       async removerFase(id) {
         await fases.delete({ id });
       },
+      async contarDesafiosPorFase() {
+        // SELECT ID_FASE, COUNT(*) FROM DESAFIO GROUP BY ID_FASE
+        const linhas = await desafios
+          .createQueryBuilder('d')
+          .select('d.faseId', 'faseId')
+          .addSelect('COUNT(*)', 'total')
+          .groupBy('d.faseId')
+          .getRawMany();
+        return new Map(linhas.map((l) => [Number(l.faseId), Number(l.total)]));
+      },
 
       // Desafios
       async listarDesafios(faseId) {

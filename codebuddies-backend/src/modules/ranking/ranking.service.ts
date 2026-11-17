@@ -4,6 +4,7 @@ import { montarMapaDeFases } from '../../domain/regras/progressao.js';
 import { montarRanking, type DadosRanking } from '../../domain/regras/ranking.js';
 import type { Contexto } from '../../shared/contexto.js';
 import { Erros } from '../../shared/errors/erros.js';
+import { listarFasesJogaveis } from '../conteudo/fases-jogaveis.js';
 
 /**
  * RF-P13 / RF-P14 / RF-D12 / RN08 / CA08 / CA09
@@ -18,7 +19,7 @@ export class RankingService {
     const [participacoes, tentativas, fases] = await Promise.all([
       repos.participacoes.listarPorSessao(sessaoId),
       repos.tentativas.listarPorSessao(sessaoId),
-      repos.conteudo.listarFases(),
+      listarFasesJogaveis(repos),
     ]);
 
     const dados: DadosRanking[] = [];

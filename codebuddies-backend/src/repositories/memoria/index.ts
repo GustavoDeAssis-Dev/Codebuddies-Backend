@@ -249,6 +249,11 @@ export function criarRepositoriosEmMemoria(conteudo: ConteudoInicial = conteudoI
       async removerFase(id) {
         fases.delete(id);
       },
+      async contarDesafiosPorFase() {
+        const totais = new Map<number, number>();
+        for (const d of desafios.values()) totais.set(d.faseId, (totais.get(d.faseId) ?? 0) + 1);
+        return totais;
+      },
 
       // Desafios
       async listarDesafios(faseId) {

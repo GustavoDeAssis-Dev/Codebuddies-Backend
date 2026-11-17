@@ -74,6 +74,8 @@ export interface ConteudoRepository {
   criarFase(dados: Omit<Fase, 'id'>): Promise<Fase>;
   atualizarFase(fase: Fase): Promise<Fase>;
   removerFase(id: number): Promise<void>;
+  /** Quantos desafios cada fase tem: Map<faseId, total>. Fase sem desafios não aparece no Map. */
+  contarDesafiosPorFase(): Promise<Map<number, number>>;
 
   // Desafios
   /** Desafios da fase, já em ordem. */

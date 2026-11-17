@@ -316,3 +316,46 @@ describe('Jogo (aluno)', () => {
     expect((await comToken(token).get(`/api/alunos/${alunoId}/mapa`)).status).toBe(403); // aluno não
   });
 });
+
+describe('Fases sem desafios (correção da integração com o front)', () => {
+  it('GET /api/fases informa quantos desafios cada fase tem', async () => {
+    const res = await prof().get('/api/fases');
+    expect(res.body[0]).toMatchObject({ titulo: 'Clique nos balões', totalDesafios: 3 });
+  });
+
+  it('fase sem desafios não aparece no mapa do aluno e não trava as próximas', async () => {
+    // Fase "em construção" no fim do nível 1 (entre "Encontre as teclas" e "Vogais")
+    const vazia = await prof().post('/api/fases', { nivelId: 1, titulo: 'Em construção', tipo: 'LOGICA' });
+    const lista = await prof().get('/api/fases');
+    expect(lista.body.find((f: { id: number }) => f.id === vazia.body.id)).toMatchObject({ totalDesafios: 0 });
+
+    const { token, alunoId } = await alunoNaAula();
+    const mapa = await comToken(token).get('/api/jogo/mapa');
+    expect(mapa.body.fases).toHaveLength(6); // a fase vazia não aparece
+    expect(mapa.body.fases.map((f: { faseId: number }) => f.faseId)).not.toContain(vazia.body.id);
+
+    // Conclui as 2 fases do nível 1: "Vogais" (nível 2) precisa ser liberada mesmo com a fase vazia no meio
+    const tentativas = new TentativasService(ctx);
+    await tentativas.registrar(alunoId, {
+      faseId: 1,
+      tempoSegundos: 10,
+      respostas: [
+        { desafioId: 1, resposta: '3' },
+        { desafioId: 2, resposta: 'azul' },
+        { desafioId: 3, resposta: '2' },
+      ],
+    });
+    await tentativas.registrar(alunoId, {
+      faseId: 2,
+      tempoSegundos: 10,
+      respostas: [
+        { desafioId: 4, resposta: 'backspace' },
+        { desafioId: 5, resposta: 'enter' },
+        { desafioId: 6, resposta: 'espaco' },
+      ],
+    });
+    const depois = await comToken(token).get('/api/jogo/mapa');
+    expect(depois.body.fases[2]).toMatchObject({ titulo: 'Vogais', status: 'LIBERADA' });
+    expect(depois.body.nivelAtual).toBe(2);
+  });
+});

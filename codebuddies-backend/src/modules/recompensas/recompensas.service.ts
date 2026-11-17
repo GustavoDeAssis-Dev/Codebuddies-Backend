@@ -1,6 +1,7 @@
 import { calcularConquistas, type Conquista } from '../../domain/regras/conquistas.js';
 import type { Contexto } from '../../shared/contexto.js';
 import { Erros } from '../../shared/errors/erros.js';
+import { listarFasesJogaveis } from '../conteudo/fases-jogaveis.js';
 
 /** O "painel de recompensas" do aluno: pontuação, estrelas e medalhas. */
 export interface PainelDeRecompensas {
@@ -18,9 +19,9 @@ export class RecompensasService {
 
   /** Busca os dados do aluno no banco (as 3 consultas ao mesmo tempo). */
   private async dadosDoAluno(alunoId: number) {
-    const { conteudo, progressos, tentativas } = this.ctx.repos;
+    const { progressos, tentativas } = this.ctx.repos;
     const [fases, progressosDoAluno, tentativasDoAluno] = await Promise.all([
-      conteudo.listarFases(),
+      listarFasesJogaveis(this.ctx.repos),
       progressos.listarPorAluno(alunoId),
       tentativas.listarPorAluno(alunoId),
     ]);

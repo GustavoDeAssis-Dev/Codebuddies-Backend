@@ -4,6 +4,7 @@ import { avaliarDesempenho } from '../../domain/regras/estrelas.js';
 import { montarMapaDeFases, podeJogar, proximaFase } from '../../domain/regras/progressao.js';
 import type { Contexto } from '../../shared/contexto.js';
 import { Erros } from '../../shared/errors/erros.js';
+import { listarFasesJogaveis } from '../conteudo/fases-jogaveis.js';
 import { JogoService } from '../jogo/jogo.service.js';
 import { registrarTentativaSchema, type RegistrarTentativaInput } from './tentativas.schemas.js';
 import { novasConquistas, type Conquista } from '../../domain/regras/conquistas.js';
@@ -60,12 +61,12 @@ export class TentativasService {
     const fase = await repos.conteudo.buscarFase(dados.faseId);
     if (!fase) throw Erros.faseNaoEncontrada();
 
-    const fases = await repos.conteudo.listarFases();
-    const mapaAntes = montarMapaDeFases(fases, await repos.progressos.listarPorAluno(alunoId));
-    if (!podeJogar(mapaAntes, fase.id)) throw Erros.faseBloqueada();
-
     const desafios = await repos.conteudo.listarDesafios(fase.id);
     if (desafios.length === 0) throw Erros.faseSemDesafios();
+
+    const fases = await listarFasesJogaveis(repos); // só fases com desafios (as "em construção" não travam)
+    const mapaAntes = montarMapaDeFases(fases, await repos.progressos.listarPorAluno(alunoId));
+    if (!podeJogar(mapaAntes, fase.id)) throw Erros.faseBloqueada();
     this.validarRespostas(desafios, dados.respostas);
 
     // Correção → estrelas e pontos
